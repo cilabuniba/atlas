@@ -1,0 +1,9 @@
+dataset:
+  data_class: CoraFull
+  dataset_cfg:
+    root: ./data/raw/cora
+export:
+  output_dir: ./dataset_code/cora
+  layout: spring
+  scale: 1000
+  use_tqdm: True
