@@ -4,6 +4,7 @@ dataset:
     root: ./data/raw/cora
 export:
   output_dir: ./dataset_code/cora
+  num_nodes: 2000
   layout: spring
   scale: 1000
   use_tqdm: True
