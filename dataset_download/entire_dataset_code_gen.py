@@ -13,6 +13,8 @@ def download_dataset(data_class, dataset_cfg: dict = {}) -> Data:
 
 
 def filter_graph(data: Data, num_nodes: int):
+    if num_nodes > data.x.size(0):
+        return data
     x = data.x[:num_nodes]
     edge_index, _ = subgraph(torch.arange(num_nodes), data.edge_index, relabel_nodes=True)
     y = data.y[:num_nodes]
@@ -53,7 +55,7 @@ def export_pyg_graph_to_python(
     G = to_networkx(
         data,
         to_undirected=True,
-        remove_self_loops=True,
+        remove_self_loops=False,
     )
 
     # Compute node positions
@@ -92,11 +94,12 @@ def export_pyg_graph_to_python(
         # Nodes
         node_iterator = tqdm(G.nodes(), desc="Nodes") if use_tqdm else G.nodes()
         for node in node_iterator:
-
+            y = data.y[node].unsqueeze(0) if node < data.y.size(0) else data.y
+            y = y.tolist() if y.size(0) > 1 or y.ndim > 1 else y.item()
             attrs = {
                 "type": "Generic",
                 "description": (
-                    f"Class: {int(data.y[node])}" if hasattr(data, "y") else ""
+                    f"Class: {y}" if hasattr(data, "y") else ""
                 ),
                 "shape": "Circle",
                 "pos": pos[node],
