@@ -1,18 +1,28 @@
 from pathlib import Path
 import networkx as nx
 from torch_geometric.data import Data
-from torch_geometric.utils import to_networkx
+from torch_geometric.utils import to_networkx, subgraph
 import torch_geometric.datasets as data_class_dict
 from tqdm import tqdm
 import os
+import torch
 
 
 def download_dataset(data_class, dataset_cfg: dict = {}) -> Data:
     return data_class_dict.__dict__[data_class](**dataset_cfg)[0]
 
 
+def filter_graph(data: Data, num_nodes: int):
+    x = data.x[:num_nodes]
+    edge_index, _ = subgraph(torch.arange(num_nodes), data.edge_index, relabel_nodes=True)
+    y = data.y[:num_nodes]
+    return Data(x=x, edge_index=edge_index, y=y)
+
+
+
 def export_pyg_graph_to_python(
     data: Data,
+    num_nodes: int = None,
     output_dir: str = "./",
     layout: str = "spring",
     scale: int = 1000,
@@ -35,6 +45,9 @@ def export_pyg_graph_to_python(
         pos = {...}
         nx.draw(G, pos=pos, with_labels=True)
     """
+
+    if num_nodes is not None:
+        data = filter_graph(data=data, num_nodes=num_nodes)
 
     # Convert PyG graph to NetworkX
     G = to_networkx(
