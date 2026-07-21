@@ -1,0 +1,11 @@
+dataset:
+  data_class: PPI
+  dataset_cfg:
+    root: ./data/raw/ppi
+    split: test
+export:
+  output_dir: ./dataset_code/ppi
+  num_nodes: 200
+  layout: spring
+  scale: 1000
+  use_tqdm: True

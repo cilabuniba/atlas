@@ -1,5 +1,8 @@
 import ast, re
 from PyQt6.QtCore import QPointF
+from tqdm import tqdm
+from PyQt6.QtWidgets import QProgressDialog, QApplication
+from PyQt6.QtCore import Qt
 
 AVAILABLE_LIBRARIES = {}
 
@@ -99,12 +102,14 @@ class GraphImporter:
         
         try:
             import re
+            print("Finding nx.draw in the code")
             code = re.sub(r'nx\.draw\([^\)]*\)', '', code)
 
             exec(code, globals_dict, locals_dict)
         except Exception as e:
             raise ValueError(f"Error executing code: {str(e)}")
         
+        print("Parsed nodes and edges")
         G = locals_dict.get("G", G)
         pos = locals_dict.get("pos")
         
@@ -113,7 +118,25 @@ class GraphImporter:
         
         node_map = {}
 
-        for node_id, attrs in G.nodes(data=True):
+        # widget stuff
+        total_nodes = G.number_of_nodes()
+        total_edges = G.number_of_edges()
+        total_steps = total_nodes + total_edges
+
+        progress = QProgressDialog(
+            "Importing graph",
+            "Cancel",
+            0,
+            total_steps,
+        )
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(True)
+        progress.setAutoReset(True)
+
+        step = 0
+
+        for node_id, attrs in tqdm(G.nodes(data=True)):
             try:
               
                 pos_tuple = attrs.get("pos")
@@ -127,10 +150,12 @@ class GraphImporter:
                 tipo = attrs.get("type", "Generic")
                 descrizione = attrs.get("description", "")
                 forma = attrs.get("form", "Circle")
+                colore = attrs.get("color", "#B279A2")
 
                 node_attrs = {
                     "description": descrizione,
-                    "shape": forma
+                    "shape": forma,
+                    "color": colore,
                 }
 
                 scene_node = scene.add_node(node_id, scene_pos, tipo=tipo, attributes=node_attrs)
@@ -138,10 +163,15 @@ class GraphImporter:
 
             except Exception as e:
                 raise ValueError(f"Error adding node '{node_id}': {str(e)}")
+            
+            step += 1
+            progress.setLabelText(f"Importing nodes ({step}/{total_nodes})...")
+            progress.setValue(step)
+            QApplication.processEvents()
 
         
         # Add edges
-        for source, target, attrs in G.edges(data=True):
+        for i, (source, target, attrs) in enumerate(tqdm(G.edges(data=True))):
             try:
                 if source in node_map and target in node_map:
                     tipo = attrs.get("type", "Relation")
@@ -152,6 +182,12 @@ class GraphImporter:
             except Exception as e:
                 raise ValueError(f"Error adding edge {source} → {target}: {str(e)}")
 
+            step += 1
+            progress.setLabelText(f"Importing edges ({i}/{total_edges})...")
+            progress.setValue(step)
+            QApplication.processEvents()
+
+        progress.close()
                         
         return True
     

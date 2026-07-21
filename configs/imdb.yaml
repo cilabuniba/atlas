@@ -1,0 +1,8 @@
+dataset:
+  data_class: IMDB
+  dataset_cfg:
+    root: ./data/raw/imdb
+export:
+  output_dir: ./dataset_code/imdb
+  num_nodes: 50
+  use_tqdm: True

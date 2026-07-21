@@ -1,0 +1,10 @@
+dataset:
+  data_class: WikiCS
+  dataset_cfg:
+    root: ./data/raw/wikics
+export:
+  output_dir: ./dataset_code/wikics
+  num_nodes: 200
+  layout: spring
+  scale: 1000
+  use_tqdm: True
