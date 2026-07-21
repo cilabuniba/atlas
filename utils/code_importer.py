@@ -150,10 +150,12 @@ class GraphImporter:
                 tipo = attrs.get("type", "Generic")
                 descrizione = attrs.get("description", "")
                 forma = attrs.get("form", "Circle")
+                colore = attrs.get("color", "#B279A2")
 
                 node_attrs = {
                     "description": descrizione,
-                    "shape": forma
+                    "shape": forma,
+                    "color": colore,
                 }
 
                 scene_node = scene.add_node(node_id, scene_pos, tipo=tipo, attributes=node_attrs)

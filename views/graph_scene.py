@@ -11,6 +11,21 @@ AVAILABLE_SHAPES = {
     "Diamond": "diamond"
 }
 
+def hex_to_rgb(hex_color):
+    """
+    Convert HEX color string to RGB tuple.
+
+    Example:
+        hex_to_rgb("#4C78A8")
+        -> (76, 120, 168)
+    """
+    hex_color = hex_color.lstrip("#")
+
+    return tuple(
+        int(hex_color[i:i+2], 16)
+        for i in (0, 2, 4)
+    )
+
 
 class GraphScene(QGraphicsScene):
     graphModified = pyqtSignal()  # New signal for graph modifications
@@ -57,24 +72,26 @@ class GraphScene(QGraphicsScene):
         node = Node(node_id, pos, tipo, attributes)
 
 
-        tipo_shape = attributes.get("shape", "Circle")
+        shape = attributes.get("shape", "Circle")
+        color = attributes.get("color", "#B279A2")
+        color=QColor(*hex_to_rgb(color))
 
-        if self.mode_type == "Heterogeneous" and tipo_shape in self.node_types:
+        if self.mode_type == "Heterogeneous":
+            if tipo not in self.node_types:
+                self.node_types[tipo] = {"shape": shape, "color": color}
+                # self.node_types[tipo]["shape"] = tipo_shape
+                # self.node_types[tipo]["color"] = color
+        # if self.mode_type == "Heterogeneous" and tipo_shape in self.node_types:
 
-            shape = self.node_types[tipo_shape]["shape"]
-            color = self.node_types[tipo_shape]["color"]
-        else:
-
-            shape = tipo_shape
-            color = QColor(174, 34, 255)
-
+        #     shape = self.node_types[tipo_shape]["shape"]
+        #     color = self.node_types[tipo_shape]["color"]
         node.color = color
 
 
         from PyQt6.QtGui import QPixmap
 
-        image_path = self.node_types[tipo_shape].get("image") if (
-            self.mode_type == "Heterogeneous" and tipo_shape in self.node_types
+        image_path = self.node_types[tipo].get("image") if (
+            self.mode_type == "Heterogeneous" and tipo in self.node_types
         ) else None
 
         if image_path:

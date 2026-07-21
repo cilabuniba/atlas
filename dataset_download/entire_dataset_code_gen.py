@@ -185,6 +185,40 @@ def filter_hetero_graph(data: HeteroData, num_nodes: int):
     return data
 
 
+def generate_node_type_styles(node_types):
+    """
+    Dynamically assign colors and shapes to node types.
+    """
+
+    shapes = [
+        "Circle",
+        "Rectangle",
+        "Ellipse",
+        "Diamond",
+    ]
+
+    # Color palette (hex)
+    colors = [
+        "#4C78A8",
+        "#F58518",
+        "#54A24B",
+        "#E45756",
+        "#72B7B2",
+        "#B279A2",
+        "#FF9DA6",
+        "#9D755D",
+    ]
+
+    styles = {}
+
+    for i, node_type in enumerate(node_types):
+
+        styles[node_type] = {
+            "shape": shapes[i % len(shapes)],
+            "color": colors[i % len(colors)],
+        }
+
+    return styles
 
 def export_pyg_hetero_graph_to_python(
     data: HeteroData,
@@ -208,6 +242,9 @@ def export_pyg_hetero_graph_to_python(
     # ---------------------------------
     G = nx.MultiDiGraph()
     # Nodes
+    
+    node_styles = generate_node_type_styles(data.node_types)
+    
     node_type_iterator = tqdm(data.node_types) if use_tqdm else data.node_types
     for node_type in node_type_iterator:
         store = data[node_type]
@@ -225,7 +262,8 @@ def export_pyg_hetero_graph_to_python(
                 node_id,
                 type=node_type,
                 description=description,
-                shape="Circle",
+                shape=node_styles[node_type]["shape"],
+                color=node_styles[node_type]["color"],
             )
 
     # Edges
