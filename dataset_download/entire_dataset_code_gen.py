@@ -1,6 +1,6 @@
 from pathlib import Path
 import networkx as nx
-from torch_geometric.data import Data
+from torch_geometric.data import Data, HeteroData
 from torch_geometric.utils import to_networkx, subgraph
 import torch_geometric.datasets as data_class_dict
 from tqdm import tqdm
@@ -130,9 +130,205 @@ def export_pyg_graph_to_python(
     print(f"Saved graph to {output_file.resolve()}")
 
 
+def filter_hetero_graph(data: HeteroData, num_nodes: int):
+    """
+    Keep only the first num_nodes nodes of each node type and
+    remove invalid edges.
+    """
+
+    data = data.clone()
+
+    kept_nodes = {}
+
+    # -----------------------------
+    # Filter nodes
+    # -----------------------------
+    for node_type in data.node_types:
+        store = data[node_type]
+        old_num_nodes = store.num_nodes
+        keep = min(num_nodes, old_num_nodes)
+        kept_nodes[node_type] = keep
+
+        for key, value in list(store.items()):
+            if isinstance(value, torch.Tensor):
+                if value.size(0) == old_num_nodes:
+                    store[key] = value[:keep]
+
+            elif isinstance(value, list):
+                if len(value) == old_num_nodes:
+                    store[key] = value[:keep]
+
+        store.num_nodes = keep
+
+    # -----------------------------
+    # Filter edges
+    # -----------------------------
+    for edge_type in data.edge_types:
+        src_type, rel, dst_type = edge_type
+        store = data[edge_type]
+        edge_index = store.edge_index
+        mask = (
+            (edge_index[0] < kept_nodes[src_type])
+            &
+            (edge_index[1] < kept_nodes[dst_type])
+        )
+        store.edge_index = edge_index[:, mask]
+        num_edges = edge_index.size(1)
+        for key, value in list(store.items()):
+            if key == "edge_index":
+                continue
+
+            if isinstance(value, torch.Tensor):
+                if value.size(0) == num_edges:
+                    store[key] = value[mask]
+
+    return data
+
+
+
+def export_pyg_hetero_graph_to_python(
+    data: HeteroData,
+    num_nodes: int = None,
+    output_dir: str = "./",
+    use_tqdm: bool = False,
+):
+    """
+    Export PyG HeteroData into a standalone NetworkX script
+    compatible with the graph visualization widget.
+    """
+
+    if num_nodes is not None:
+        data = filter_hetero_graph(data, num_nodes)
+
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = f"{output_dir}/graph_export.py"
+
+    # ---------------------------------
+    # Create temporary NetworkX graph
+    # ---------------------------------
+    G = nx.MultiDiGraph()
+    # Nodes
+    node_type_iterator = tqdm(data.node_types) if use_tqdm else data.node_types
+    for node_type in node_type_iterator:
+        store = data[node_type]
+        for idx in range(store.num_nodes):
+            node_id = f"{node_type}:{idx}"
+            description = node_id
+            if hasattr(store, "y"):
+                try:
+                    description += (
+                        f" - Class: {int(store.y[idx])}"
+                    )
+                except:
+                    pass
+            G.add_node(
+                node_id,
+                type=node_type,
+                description=description,
+                shape="Circle",
+            )
+
+    # Edges
+    edge_type_iterator = tqdm(data.edge_types) if use_tqdm else data.edge_types
+    for edge_type in edge_type_iterator:
+        src_type, relation, dst_type = edge_type
+        edge_index = data[edge_type].edge_index
+        for src, dst in edge_index.t().tolist():
+            G.add_edge(
+                f"{src_type}:{src}",
+                f"{dst_type}:{dst}",
+                type=relation,
+                description=relation,
+            )
+
+    # ---------------------------------
+    # Compute layout
+    # ---------------------------------
+    if len(G) < 5000:
+        pos = nx.spring_layout(
+            G,
+            seed=42
+        )
+    else:
+        pos = nx.random_layout(G)
+
+    pos = {
+        node: (
+            float(x * 1000),
+            float(y * 1000)
+        )
+        for node, (x, y) in pos.items()
+    }
+
+    # ---------------------------------
+    # Write Python file
+    # ---------------------------------
+
+    with open(output_file, "w", encoding="utf-8") as f:
+
+        f.write("import networkx as nx\n\n")
+
+        f.write(
+            "G = nx.MultiDiGraph()\n\n"
+        )
+
+
+        # Nodes
+        for node, attrs in G.nodes(data=True):
+            attrs["pos"] = pos[node]
+            f.write(
+                f"G.add_node("
+                f"{repr(node)}, "
+                f"**{repr(attrs)}"
+                f")\n"
+            )
+        f.write("\n")
+
+        # Edges
+        for u, v, attrs in G.edges(data=True):
+            f.write(
+                f"G.add_edge("
+                f"{repr(u)}, "
+                f"{repr(v)}, "
+                f"**{repr(attrs)}"
+                f")\n"
+            )
+
+        f.write("\n")
+
+        # Positions
+        f.write("pos = {\n")
+
+        for node, p in pos.items():
+            f.write(
+                f"    {repr(node)}: {p},\n"
+            )
+
+        f.write(
+            "}\n\n"
+        )
+
+        f.write(
+            "nx.draw(G, pos=pos, with_labels=True)\n"
+        )
+
+    print(
+        f"Saved heterogeneous graph to {output_file}"
+    )
+
+
+
 def generate_dataset_code(parameters: dict) -> None:
     dataset_parameters = parameters["dataset"]
     exporter_parameters = parameters["export"]
 
     dataset = download_dataset(**dataset_parameters)
     return export_pyg_graph_to_python(data=dataset, **exporter_parameters)
+
+
+
+def generate_hetero_dataset_code(parameters: dict) -> None:
+    dataset_parameters = parameters["dataset"]
+    exporter_parameters = parameters["export"]
+    dataset = download_dataset(**dataset_parameters)
+    return export_pyg_hetero_graph_to_python(data=dataset, **exporter_parameters)
