@@ -45,9 +45,11 @@ metrics:
     name: Accuracy
     config:
       task: &task multiclass
+      average: macro
       num_classes: *num_classes
   f1:
     name: F1Score
     config:
       task: *task
+      average: macro
       num_classes: *num_classes
