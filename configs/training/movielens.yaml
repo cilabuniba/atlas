@@ -1,14 +1,22 @@
 general:
-  out_dir: &out_dir checkpoints/imdb
+  out_dir: &out_dir checkpoints/movielens
   device: cpu
   num_epochs: 300
-  target: &target movie
+  target: &target ["user", "rates", "movie"]
 data:
-  name: IMDB
+  name: MovieLens100K
   config:
-    root: data/raw/imdb
+    root: data/raw/movielens100k
+    split:
+      num_val: 0.1
+      num_test: 0.1
+      disjoint_train_ratio: 0.3
+      neg_sampling_ratio: 0.0
+      edge_types: *target
+      rev_edge_types: ["movie", "rated_by", "user"]
+      is_undirected: True
 model:
-  name: HeteroNodeClassifier
+  name: HeteroEdgeClassifier
   config:
     gnn_name: GAT
     gnn_config:
@@ -19,9 +27,10 @@ model:
       dropout: .5
       add_self_loops: False
     hidden_dim: *hidden_channels
-    num_classes: &num_classes 3
-    target_node_type: *target
+    num_classes: &num_classes 5
     aggr: sum
+    src_nodet: user
+    dst_nodet: movie
 optimizer:
   name: AdamW
   config:
@@ -29,7 +38,7 @@ optimizer:
 criterion:
   name: CrossEntropyLoss
   config:
-    weight: [3.76, 2.70, 2.74]
+    weight: [14.3781,  9.1241,  3.8595,  2.9507,  4.4873]
 early_stop:
   name: EarlyStopping
   config:

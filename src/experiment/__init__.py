@@ -1,5 +1,5 @@
 from .imdb_run import IMDBRun
-
+from .movielens_run import MovielensRun
 
 def exe_experiment(parameters: dict, cls: str):
     run_cls = globals()[cls]

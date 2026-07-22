@@ -146,6 +146,11 @@ class Run:
             return
         bar.set_postfix({ParameterKeys.CRITERION: loss, **kwargs})
 
+    def print_stats(self, loss: float, phase: str, epoch: str = None):
+        if epoch is not None:
+            print(f"Epoch {epoch}/{self.num_epochs}...", end=" ")
+        print(f"{phase.title()} loss: {loss:.4f}")
+
     def train_epoch(self, epoch: int):
         raise NotImplementedError()
 

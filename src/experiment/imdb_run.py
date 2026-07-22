@@ -31,11 +31,6 @@ class IMDBRun(Run):
             **model_cfg, metadata=self.dataset.metadata()
         ).to(self.device)
 
-    def print_stats(self, loss: float, phase: str, epoch: str = None):
-        if epoch is not None:
-            print(f"Epoch {epoch}/{self.num_epochs}...", end=" ")
-        print(f"{phase.title()} loss: {loss:.4f}")
-
     def train_epoch(self, epoch):
         self.model.train()
         self.optimizer.zero_grad()
@@ -57,7 +52,7 @@ class IMDBRun(Run):
         self.model.eval()
         y = self.y[self.masks[ParameterKeys.VAL]].to(self.device)
         out = self.model(self.dataset.x_dict, self.dataset.edge_index_dict)
-        out = out[self.masks[ParameterKeys.TRAIN]]
+        out = out[self.masks[ParameterKeys.VAL]]
         loss = self.criterion(out, y)
         self.metrics.update(out, y)
         self.schedule(phase=ParameterKeys.VAL, epoch=epoch)
@@ -72,9 +67,9 @@ class IMDBRun(Run):
     @torch.no_grad()
     def test(self):
         self.model.eval()
-        y = self.y[self.masks[ParameterKeys.VAL]].to(self.device)
+        y = self.y[self.masks[ParameterKeys.TEST]].to(self.device)
         out = self.model(self.dataset.x_dict, self.dataset.edge_index_dict)
-        out = out[self.masks[ParameterKeys.TRAIN]]
+        out = out[self.masks[ParameterKeys.TEST]]
         loss = self.criterion(out, y)
         self.metrics.update(out, y)
         self.print_stats(loss=loss.detach().cpu().item(), phase=ParameterKeys.TEST)

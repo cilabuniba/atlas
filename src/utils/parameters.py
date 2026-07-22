@@ -23,4 +23,5 @@ class ParameterKeys(StrEnum):
     CRITERION = "criterion"
     HF_COSINE_SCHEDULER = "HFCosineScheduler"
     METRICS = "metrics"
+    SPLIT = "split"
     
