@@ -36,13 +36,6 @@ class IMDBRun(Run):
             print(f"Epoch {epoch}/{self.num_epochs}...", end=" ")
         print(f"{phase.title()} loss: {loss:.4f}")
 
-    def print_metrics(self, phase: str):
-        metrics = self.metrics.compute()
-        for name, val in metrics.items():
-            print(f"{phase} {name}: {val.item():.4f}")
-        self.metrics.reset()
-        
-
     def train_epoch(self, epoch):
         self.model.train()
         self.optimizer.zero_grad()

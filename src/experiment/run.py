@@ -165,3 +165,9 @@ class Run:
                 print(f"Early stopping at epoch {epoch}/{self.num_epochs}")
                 break
         return self.test()
+
+    def print_metrics(self, phase: str):
+        metrics = self.metrics.compute()
+        for name, val in metrics.items():
+            print(f"{phase} {name}: {val.item():.4f}")
+        self.metrics.reset()
