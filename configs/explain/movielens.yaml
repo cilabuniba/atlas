@@ -1,0 +1,48 @@
+general:
+  out_dir: &out_dir checkpoints/movielens/explanations
+  device: cuda
+  target: &target ["user", "rates", "movie"]
+  state_dict: checkpoints/movielens/model.pt
+data:
+  name: MovieLens100K
+  config:
+    root: data/raw/movielens100k
+    split:
+      num_val: 0.1
+      num_test: 0.1
+      disjoint_train_ratio: 0.3
+      neg_sampling_ratio: 0.0
+      edge_types: *target
+      rev_edge_types: ["movie", "rated_by", "user"]
+      is_undirected: True
+model:
+  name: HeteroEdgeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 5
+    aggr: sum
+    src_nodet: user
+    dst_nodet: movie
+explainer:
+  algorithm:
+    name: GNNExplainer
+    config:
+      num_epochs: 200
+  explanation_type: model
+  node_mask_type: object
+  edge_mask_type: object
+  model_config:
+    mode: multiclass_classification
+    task_level: edge
+    return_type: raw
+  threshold_config:
+    threshold_type: topk_hard
+    value: 50

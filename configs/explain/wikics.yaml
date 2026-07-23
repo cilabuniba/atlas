@@ -1,0 +1,37 @@
+general:
+  out_dir: &out_dir checkpoints/wikics/explanations
+  device: cuda
+  state_dict: checkpoints/wikics/model.pt
+  pbar: True
+data:
+  name: WikiCS
+  config:
+    root: ./data/raw/wikics
+model:
+  name: NodeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 10
+explainer:
+  algorithm:
+    name: GNNExplainer
+    config:
+      num_epochs: 200
+  explanation_type: model
+  node_mask_type: object
+  edge_mask_type: object
+  model_config:
+    mode: multiclass_classification
+    task_level: node
+    return_type: raw
+  threshold_config:
+    threshold_type: topk_hard
+    value: 50

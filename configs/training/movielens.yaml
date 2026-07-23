@@ -1,0 +1,64 @@
+general:
+  out_dir: &out_dir checkpoints/movielens
+  device: cuda
+  num_epochs: 300
+  target: &target ["user", "rates", "movie"]
+data:
+  name: MovieLens100K
+  config:
+    root: data/raw/movielens100k
+    split:
+      num_val: 0.1
+      num_test: 0.1
+      disjoint_train_ratio: 0.3
+      neg_sampling_ratio: 0.0
+      edge_types: *target
+      rev_edge_types: ["movie", "rated_by", "user"]
+      is_undirected: True
+model:
+  name: HeteroEdgeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 5
+    aggr: sum
+    src_nodet: user
+    dst_nodet: movie
+optimizer:
+  name: AdamW
+  config:
+    lr: 1e-3
+criterion:
+  name: CrossEntropyLoss
+  config:
+    weight: [14.3781,  9.1241,  3.8595,  2.9507,  4.4873]
+early_stop:
+  name: EarlyStopping
+  config:
+    patience: 30
+    verbose: True
+    out_dir: *out_dir
+scheduler:
+  name: HFCosineScheduler
+  config:
+    num_warmup_steps: 30
+metrics:
+  accuracy:
+    name: Accuracy
+    config:
+      task: &task multiclass
+      average: macro
+      num_classes: *num_classes
+  f1:
+    name: F1Score
+    config:
+      task: *task
+      average: macro
+      num_classes: *num_classes

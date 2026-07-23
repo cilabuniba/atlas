@@ -1,0 +1,53 @@
+general:
+  out_dir: &out_dir checkpoints/planetoid
+  device: cuda
+  num_epochs: 300
+data:
+  name: Planetoid
+  config:
+    root: data/raw/planetoid
+    name: Cora
+model:
+  name: NodeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 7
+optimizer:
+  name: AdamW
+  config:
+    lr: 1e-3
+criterion:
+  name: CrossEntropyLoss
+  config:
+    weight: [7.7151, 12.4793,  6.4785,  3.3105,  6.3568,  9.0872, 15.0444]
+early_stop:
+  name: EarlyStopping
+  config:
+    patience: 30
+    verbose: True
+    out_dir: *out_dir
+scheduler:
+  name: HFCosineScheduler
+  config:
+    num_warmup_steps: 30
+metrics:
+  accuracy:
+    name: Accuracy
+    config:
+      task: &task multiclass
+      average: macro
+      num_classes: *num_classes
+  f1:
+    name: F1Score
+    config:
+      task: *task
+      average: macro
+      num_classes: *num_classes

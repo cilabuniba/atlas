@@ -1,0 +1,79 @@
+general:
+  out_dir: &out_dir checkpoints/ppi
+  device: cuda
+  num_epochs: 300
+  pbar: True
+data:
+  train:
+    name: &data_name PPI 
+    config:
+      root: &root ./data/raw/ppi
+      split: train
+  val:
+    name: *data_name
+    config:
+      root: *root
+      split: val
+  test:
+    name: *data_name
+    config:
+      root: *root
+      split: test
+loader:
+  batch_size: 2
+  shuffle: True
+  num_workers: 8
+  drop_last: False
+model:
+  name: NodeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 121
+optimizer:
+  name: AdamW
+  config:
+    lr: 1e-3
+criterion:
+  name: BCEWithLogitsLoss
+  config:
+    weight: [0.5199, 3.1074, 3.8203, 3.0657, 6.8057, 4.1304, 3.0105, 1.7927, 5.4734,
+        1.8756, 3.5557, 3.1236, 0.4082, 4.2540, 4.3212, 1.6760, 8.6551, 6.1427,
+        2.6878, 1.3468, 4.1944, 0.5785, 3.2759, 2.0724, 5.1389, 0.5720, 0.4909,
+        1.9633, 0.4337, 4.5426, 0.4574, 5.9503, 0.1246, 5.0390, 3.5424, 2.0412,
+        4.0186, 3.7027, 1.3993, 3.6034, 5.9903, 3.7951, 3.7798, 3.8944, 6.4151,
+        2.5212, 1.5744, 1.5254, 3.0995, 3.2352, 1.7849, 2.3400, 1.2730, 1.3740,
+        2.8940, 2.7873, 5.0212, 4.8716, 4.8662, 3.2821, 1.1764, 5.4170, 4.1480,
+        3.6034, 3.8605, 7.0708, 1.0109, 2.0185, 1.1013, 2.5149, 3.0995, 5.1389,
+        5.0099, 2.3873, 4.1527, 4.2125, 2.0796, 6.5727, 2.6808, 3.2472, 3.5055,
+        0.9664, 2.5474, 4.0736, 5.1097, 0.7274, 9.8810, 2.4628, 2.5518, 3.9402,
+        4.6154, 2.8098, 2.0991, 4.5453, 3.9984, 2.2649, 4.6224, 1.4469, 1.2604,
+        2.7279, 0.9640, 2.8166, 4.9987, 2.2836, 4.2503, 2.3274, 2.3622, 4.2332,
+        1.1247, 1.7370, 2.1363, 4.3250, 2.5674, 2.4071, 3.9158, 1.3570, 0.1275,
+        0.3097, 0.2254, 0.7926, 3.0045]
+early_stop:
+  name: EarlyStopping
+  config:
+    patience: 30
+    verbose: True
+    out_dir: *out_dir
+scheduler:
+  name: HFCosineScheduler
+  config:
+    num_warmup_steps: 300
+metrics:
+  accuracy:
+    name: BinaryAccuracy
+  f1:
+    name: BinaryF1Score
+  precision:
+    name: BinaryPrecision
+  recall:
+    name: BinaryRecall

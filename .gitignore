@@ -176,3 +176,7 @@ cython_debug/
 /data/
 /dataset_code/
 /.vscode/
+/checkpoints/
+/notebooks/
+
+/scripts/*.bat

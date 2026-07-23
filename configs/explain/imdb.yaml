@@ -1,0 +1,40 @@
+general:
+  out_dir: &out_dir checkpoints/imdb/explanations
+  device: cuda
+  target: &target movie
+  pbar: True
+  state_dict: checkpoints/imdb/model.pt
+data:
+  name: IMDB
+  config:
+    root: data/raw/imdb
+model:
+  name: HeteroNodeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 3
+    target_node_type: *target
+    aggr: sum
+explainer:
+  algorithm:
+    name: GNNExplainer
+    config:
+      num_epochs: 200
+  explanation_type: model
+  node_mask_type: object
+  edge_mask_type: object
+  model_config:
+    mode: multiclass_classification
+    task_level: node
+    return_type: raw
+  threshold_config:
+    threshold_type: topk_hard
+    value: 50
