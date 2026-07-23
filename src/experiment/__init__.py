@@ -1,6 +1,7 @@
 from .imdb_run import IMDBRun
 from .movielens_run import MovielensRun
 from .planetoid_run import PlanetoidRun
+from .ppi_run import PPIRun
 
 
 def exe_experiment(parameters: dict, cls: str):

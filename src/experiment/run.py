@@ -169,7 +169,13 @@ class Run:
             if self.trigger:
                 print(f"Early stopping at epoch {epoch}/{self.num_epochs}")
                 break
+        self.load_state_dict()
         return self.test()
+    
+    def load_state_dict(self):
+        state_dict_path = f"{self.out_dir}/model.pt"
+        state_dict = torch.load(state_dict_path, map_location=self.device)
+        self.model.load_state_dict(state_dict)
 
     def print_metrics(self, phase: str):
         metrics = self.metrics.compute()
