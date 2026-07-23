@@ -30,6 +30,7 @@ class IMDBExplainerRun(ExplainerRun):
 
     def launch(self):
         self.model.eval()
+        self.load_state_dict()
         test_nodes = torch.where(self.mask)[0].tolist()
         iterator = self.get_bar(loader=test_nodes, desc="Explaining test nodes...")
         for node_id in iterator:

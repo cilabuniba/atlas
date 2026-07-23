@@ -1,4 +1,5 @@
 from .imdb_explainer_run import IMDBExplainerRun
+from .movielens_explainer_run import MovielensExplainerRun
 
 
 def exe_explain(parameters: dict, cls: str):

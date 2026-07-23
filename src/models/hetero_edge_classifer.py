@@ -23,8 +23,11 @@ class HeteroEdgeClassifier(torch.nn.Module):
         self.linear = torch.nn.Linear(in_features=hidden_dim*2, out_features=num_classes)
         
     def forward(self, x_dict, edge_index_dict, edge_label_index, **kwargs) -> torch.Tensor:
+        etype = kwargs.pop("edge_label_type", None)
         embs = self.gnn(x_dict, edge_index_dict, **kwargs)
         src = embs[self.src_nodet][edge_label_index[0]]
         dst = embs[self.dst_nodet][edge_label_index[1]]
-        return self.linear(torch.cat([src, dst], dim=-1))
+        edge_embs = torch.cat([src, dst], dim=-1)
+        edge_embs = edge_embs[etype[-1]] if etype is not None else edge_embs 
+        return self.linear(edge_embs)
     
