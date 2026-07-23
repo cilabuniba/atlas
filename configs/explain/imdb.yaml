@@ -1,6 +1,6 @@
 general:
   out_dir: &out_dir checkpoints/imdb/explanations
-  device: cpu
+  device: cuda
   target: &target movie
   pbar: True
   state_dict: checkpoints/imdb/model.pt

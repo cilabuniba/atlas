@@ -1,6 +1,6 @@
 general:
   out_dir: &out_dir checkpoints/wikics
-  device: cpu
+  device: cuda
   num_epochs: 300
 data:
   name: WikiCS

@@ -28,6 +28,7 @@ class ExplainerRun:
         self.out_dir = general_parameters.get(ParameterKeys.OUT_DIR, "./")
         os.makedirs(self.out_dir, exist_ok=True)
         self.device = general_parameters.get(ParameterKeys.DEVICE, "cpu")
+        self.device = self.device if torch.cuda.is_available() else "cpu"
         self.pbar = general_parameters.get(ParameterKeys.PBAR, False)
         self.state_dict_path = general_parameters.get(
             ParameterKeys.STATE_DICT, "./model.pt"
