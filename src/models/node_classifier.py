@@ -16,6 +16,10 @@ class NodeClassifier(torch.nn.Module):
 
     def forward(self, x, edge_index, **kwargs) -> torch.Tensor:
         node_id = kwargs.pop("node", None)
+        class_idx = kwargs.pop("class_idx", None)
         embs = self.gnn(x, edge_index, **kwargs)
         embs = embs[node_id] if node_id is not None else embs
-        return self.linear(embs)
+        logits = self.linear(embs)
+        if class_idx is not None:
+            logits = logits[:, class_idx] if logits.ndim > 1 else logits[class_idx]
+        return logits
