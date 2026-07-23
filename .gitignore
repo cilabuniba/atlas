@@ -178,3 +178,5 @@ cython_debug/
 /.vscode/
 /checkpoints/
 /notebooks/
+
+/scripts/*.bat
