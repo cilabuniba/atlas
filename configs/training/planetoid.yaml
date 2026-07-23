@@ -5,7 +5,7 @@ general:
 data:
   name: Planetoid
   config:
-    root: data\raw\planetoid
+    root: data/raw/planetoid
     name: Cora
 model:
   name: NodeClassifier
