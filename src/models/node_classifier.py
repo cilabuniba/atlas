@@ -15,5 +15,7 @@ class NodeClassifier(torch.nn.Module):
         self.linear = torch.nn.Linear(in_features=hidden_dim, out_features=num_classes)
 
     def forward(self, x, edge_index, **kwargs) -> torch.Tensor:
+        node_id = kwargs.pop("node", None)
         embs = self.gnn(x, edge_index, **kwargs)
+        embs = embs[node_id] if node_id is not None else embs
         return self.linear(embs)
