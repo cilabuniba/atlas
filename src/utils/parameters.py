@@ -24,4 +24,7 @@ class ParameterKeys(StrEnum):
     HF_COSINE_SCHEDULER = "HFCosineScheduler"
     METRICS = "metrics"
     SPLIT = "split"
+    STATE_DICT = "state_dict"
+    EXPLAINER = "explainer"
+    ALGORITHM="algorithm"
     

@@ -21,6 +21,8 @@ class HeteroNodeClassifier(torch.nn.Module):
         self.linear = torch.nn.Linear(in_features=hidden_dim, out_features=num_classes)
 
     def forward(self, x_dict, edge_index_dict, **kwargs) -> torch.Tensor:
+        node = kwargs.pop("node", None)
         embs = self.gnn(x_dict, edge_index_dict, **kwargs)
         embs = embs[self.target_node_type]
+        embs = embs[node] if node is not None else embs
         return self.linear(embs)

@@ -27,3 +27,13 @@ def dataset_code(parameters, hetero):
 def training(parameters, cls):
     from src.experiment import exe_experiment
     exe_experiment(load_ruamel(parameters), cls)
+
+
+@main.command("explain")
+@click.option("--parameters", help="Path to the parameters file", required=True)
+@click.option(
+    "--cls", help="Class to be used for running the experiment", required=True
+)
+def explain(parameters, cls):
+    from src.explain import exe_explain
+    exe_explain(load_ruamel(parameters), cls)
