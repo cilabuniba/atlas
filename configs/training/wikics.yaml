@@ -1,0 +1,53 @@
+general:
+  out_dir: &out_dir checkpoints/wikics
+  device: cpu
+  num_epochs: 300
+data:
+  name: WikiCS
+  config:
+    root: ./data/raw/wikics
+model:
+  name: NodeClassifier
+  config:
+    gnn_name: GAT
+    gnn_config:
+      in_channels: [-1, -1]
+      hidden_channels: &hidden_channels 256
+      num_layers: 2
+      out_channels: *hidden_channels
+      dropout: .5
+      add_self_loops: False
+    hidden_dim: *hidden_channels
+    num_classes: &num_classes 10
+optimizer:
+  name: AdamW
+  config:
+    lr: 1e-3
+criterion:
+  name: CrossEntropyLoss
+  config:
+    weight: [39.6644, 17.5427,  5.4347,  6.0533,  4.3677, 15.0013, 28.3317, 13.5272,
+        23.7825,  8.2170]
+early_stop:
+  name: EarlyStopping
+  config:
+    patience: 30
+    verbose: True
+    out_dir: *out_dir
+scheduler:
+  name: HFCosineScheduler
+  config:
+    num_warmup_steps: 30
+metrics:
+  accuracy:
+    name: Accuracy
+    config:
+      task: &task multiclass
+      average: macro
+      num_classes: *num_classes
+  f1:
+    name: F1Score
+    config:
+      task: *task
+      average: macro
+      num_classes: *num_classes
