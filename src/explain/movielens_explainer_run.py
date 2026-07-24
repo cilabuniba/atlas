@@ -4,6 +4,8 @@ import torch_geometric.datasets as data_pkg
 from torch_geometric.transforms import RandomLinkSplit
 import src.models as model_pkg
 import torch
+from torch_geometric.explain import HeteroExplanation
+import os
 
 
 class MovielensExplainerRun(ExplainerRun):
@@ -34,6 +36,16 @@ class MovielensExplainerRun(ExplainerRun):
         transform = RandomLinkSplit(**split_config)
         _, _, self.dataset = transform(dataset)
 
+    def postprocess_explanation(
+        self, explanation: HeteroExplanation
+    ) -> HeteroExplanation:
+        out_explanation = explanation.clone()
+        for node_type in out_explanation.node_types:
+            del out_explanation[node_type].x
+        for edge_type in out_explanation.edge_types:
+            del out_explanation[edge_type].edge_index
+        return out_explanation
+
     def launch(self) -> None:
         self.model.eval()
         self.load_state_dict()
@@ -42,11 +54,16 @@ class MovielensExplainerRun(ExplainerRun):
             loader=list(enumerate(test_edges)), desc="Explaining test edeges..."
         )
         for edge_idx, (src, dst) in iterator:
+            explanation_path = f"{self.out_dir}/edge_{src}_{dst}.pt"
+            if os.path.exists(explanation_path):
+                continue
             explanation = self.explainer(
                 self.dataset.x_dict,
                 self.dataset.edge_index_dict,
                 edge_label_index=self.dataset[*self.target].edge_label_index,
                 edge_label_type=(tuple(self.target), edge_idx),
             )
-            torch.save(explanation.cpu(), f"{self.out_dir}/edge_{src}_{dst}.pt")
+            torch.save(
+                self.postprocess_explanation(explanation.cpu()), explanation_path
+            )
             self.update_bar(iterator)

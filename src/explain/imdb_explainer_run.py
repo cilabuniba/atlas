@@ -3,6 +3,8 @@ from src.utils import ParameterKeys
 import src.models as model_pkg
 import torch_geometric.datasets as data_pkg
 import torch
+import os
+from torch_geometric.explain import HeteroExplanation
 
 
 class IMDBExplainerRun(ExplainerRun):
@@ -28,17 +30,32 @@ class IMDBExplainerRun(ExplainerRun):
         self.mask = self.dataset[self.target].test_mask
         self.y = self.dataset[self.target].y
 
+    def postprocess_explanation(
+        self, explanation: HeteroExplanation
+    ) -> HeteroExplanation:
+        out_explanation = explanation.clone()
+        for node_type in out_explanation.node_types:
+            del out_explanation[node_type].x
+        for edge_type in out_explanation.edge_types:
+            del out_explanation[edge_type].edge_index
+        return out_explanation
+
     def launch(self):
         self.model.eval()
         self.load_state_dict()
         test_nodes = torch.where(self.mask)[0].tolist()
         iterator = self.get_bar(loader=test_nodes, desc="Explaining test nodes...")
         for node_id in iterator:
+            explanation_path = f"{self.out_dir}/node_{node_id}.pt"
+            if os.path.exists(explanation_path):
+                continue
             explanation = self.explainer(
                 self.dataset.x_dict,
                 self.dataset.edge_index_dict,
                 node=node_id,
             )
-            torch.save(explanation.cpu(), f"{self.out_dir}/node_{node_id}.pt")
+            torch.save(
+                self.postprocess_explanation(explanation.cpu()),
+                explanation_path,
+            )
             self.update_bar(iterator)
-        
