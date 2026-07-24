@@ -24,17 +24,11 @@ class MovielensExplainerRun(ExplainerRun):
         ).to(self.device)
 
     def _init_loaders(self) -> None:
-        dataset_parameters = self.parameters.get(ParameterKeys.DATA)
-        dataset_name = dataset_parameters.get(ParameterKeys.NAME)
-        dataset_config = dataset_parameters.get(ParameterKeys.CFG)
-        split_config = dataset_config.pop(ParameterKeys.SPLIT)
-        split_config["edge_types"] = tuple(split_config["edge_types"])
-        split_config["rev_edge_types"] = tuple(split_config["rev_edge_types"])
-        dataset = data_pkg.__dict__[dataset_name](**dataset_config)[0].to(self.device)
-        del dataset[*self.target].edge_label_index
-        del dataset[*self.target].edge_label
-        transform = RandomLinkSplit(**split_config)
-        _, _, self.dataset = transform(dataset)
+        self.dataset = torch.load(
+            self.state_dict_path.replace("model.pt", "test_dataset.pt"),
+            map_location=self.device,
+            weights_only=False
+        )
 
     def postprocess_explanation(
         self, explanation: HeteroExplanation

@@ -54,7 +54,7 @@ class IMDBRun(Run):
         out = self.model(self.dataset.x_dict, self.dataset.edge_index_dict)
         out = out[self.masks[ParameterKeys.VAL]]
         loss = self.criterion(out, y)
-        self.metrics.update(out, y)
+        self.metrics.update(out.detach().cpu(), y.cpu())
         self.schedule(phase=ParameterKeys.VAL, epoch=epoch)
         self.trigger = self.early_stop_callback(
             cumulated_loss=loss.detach().cpu().item()
@@ -71,6 +71,6 @@ class IMDBRun(Run):
         out = self.model(self.dataset.x_dict, self.dataset.edge_index_dict)
         out = out[self.masks[ParameterKeys.TEST]]
         loss = self.criterion(out, y)
-        self.metrics.update(out, y)
+        self.metrics.update(out.cpu(), y.cpu())
         self.print_stats(loss=loss.detach().cpu().item(), phase=ParameterKeys.TEST)
         self.print_metrics(phase=ParameterKeys.TEST)

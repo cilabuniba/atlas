@@ -14,9 +14,15 @@ def main():
     is_flag=True,
     help="Optional flag to impose heterogeneous graph filtering",
 )
-def dataset_code(parameters, hetero):
+@click.option(
+    "--explanation",
+    is_flag=True,
+    help="Optional flag to impose explanation export",
+)
+def dataset_code(parameters, hetero, explanation):
     from src.code_gen import generate_code
-    return generate_code(load_ruamel(parameters), hetero)
+
+    return generate_code(load_ruamel(parameters), hetero, explanation)
 
 
 @main.command("training")
@@ -26,6 +32,7 @@ def dataset_code(parameters, hetero):
 )
 def training(parameters, cls):
     from src.experiment import exe_experiment
+
     exe_experiment(load_ruamel(parameters), cls)
 
 
@@ -36,4 +43,5 @@ def training(parameters, cls):
 )
 def explain(parameters, cls):
     from src.explain import exe_explain
+
     exe_explain(load_ruamel(parameters), cls)

@@ -79,7 +79,7 @@ class Run:
         criterion_cfg = criterion_parameters.get(ParameterKeys.CFG, {})
         if "weight" in criterion_cfg:
             criterion_cfg["weight"] = torch.as_tensor(criterion_cfg["weight"])
-        self.criterion = losses.__dict__[criterion_name](**criterion_cfg)
+        self.criterion = losses.__dict__[criterion_name](**criterion_cfg).to(self.device)
 
     def _init_early_stop(self):
         early_stop_parameters = self.parameters.get(ParameterKeys.EARLY_STOP, None)

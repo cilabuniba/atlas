@@ -33,16 +33,18 @@ class MovielensRun(Run):
         del dataset[*self.target].edge_label
         transform = RandomLinkSplit(**split_config)
         self.train_data, self.val_data, self.test_data = transform(dataset)
+        torch.save(self.test_data, f"{self.out_dir}/test_dataset.pt")
 
     def train_epoch(self, epoch):
         self.model.train()
         self.optimizer.zero_grad()
+        self.train_data = self.train_data.to(self.device)
         out = self.model(
             self.train_data.x_dict,
             self.train_data.edge_index_dict,
             self.train_data[*self.target].edge_label_index
         )
-        labels = self.train_data[*self.target].edge_label.long() - 1
+        labels = (self.train_data[*self.target].edge_label.long() - 1).to(self.device)
         loss = self.criterion(out, labels)
         loss.backward()
         self.optimizer.step()
@@ -56,6 +58,7 @@ class MovielensRun(Run):
     @torch.no_grad()
     def validate_epoch(self, epoch):
         self.model.eval()
+        self.val_data = self.val_data.to(self.device)
         out = self.model(
             self.val_data.x_dict,
             self.val_data.edge_index_dict,
@@ -76,6 +79,7 @@ class MovielensRun(Run):
     @torch.no_grad()
     def test(self):
         self.model.eval()
+        self.test_data = self.test_data.to(self.device)
         out = self.model(
             self.test_data.x_dict,
             self.test_data.edge_index_dict,
