@@ -1,0 +1,7 @@
+dataset:
+  data_class: checkpoints\movielens\test_dataset.pt
+  custom: True
+explanation:
+  fname: checkpoints\movielens\explanations\edge_69_595.pt
+export:
+  output_dir: dataset_code\movielens100k

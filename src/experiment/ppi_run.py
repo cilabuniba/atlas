@@ -32,13 +32,14 @@ class PPIRun(Run):
         cumulated_loss = 0.0
         for batch in loader:
             self.optimizer.zero_grad()
+            batch = batch.to(self.device)
             out = self.model(batch.x, batch.edge_index)
             loss = self.criterion(out, batch.y)
             loss.backward()
             self.optimizer.step()
             batch_loss = loss.detach().cpu().item()
             cumulated_loss += batch_loss
-            self.metrics.update(out, batch.y)
+            self.metrics.update(out.detach().cpu(), batch.y.cpu())
             self.update_bar(bar=loader, loss=batch_loss)
             self.schedule(phase=ParameterKeys.TRAIN)
         cumulated_loss = cumulated_loss / len(self.train_loader)
@@ -54,11 +55,12 @@ class PPIRun(Run):
         )
         cumulated_loss = 0.0
         for batch in loader:
+            batch = batch.to(self.device)
             out = self.model(batch.x, batch.edge_index)
             loss = self.criterion(out, batch.y)
             batch_loss = loss.detach().cpu().item()
             cumulated_loss += batch_loss
-            self.metrics.update(out, batch.y)
+            self.metrics.update(out.cpu(), batch.y.cpu())
             self.update_bar(bar=loader, loss=batch_loss)
         self.schedule(phase=ParameterKeys.VAL, epoch=epoch)
         cumulated_loss = cumulated_loss / len(self.val_loader)
@@ -75,11 +77,12 @@ class PPIRun(Run):
         )
         cumulated_loss = 0.0
         for batch in loader:
+            batch = batch.to(self.device)
             out = self.model(batch.x, batch.edge_index)
             loss = self.criterion(out, batch.y)
             batch_loss = loss.detach().cpu().item()
             cumulated_loss += batch_loss
-            self.metrics.update(out, batch.y)
+            self.metrics.update(out.cpu(), batch.y.cpu())
             self.update_bar(bar=loader, loss=batch_loss)
         cumulated_loss = cumulated_loss / len(self.test_loader)
         self.print_metrics(phase=ParameterKeys.VAL)

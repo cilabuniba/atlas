@@ -1,0 +1,10 @@
+dataset:
+  data_class: WikiCS
+  dataset_cfg:
+    root: ./data/raw/wikics
+explanation:
+  fname: checkpoints/wikics/explanations/node_2.pt
+export:
+  output_dir: ./dataset_code/wikics
+  layout: spring
+  scale: 1000

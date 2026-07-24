@@ -1,0 +1,11 @@
+dataset:
+  data_class: Planetoid
+  dataset_cfg:
+    root: ./data/raw/planetoid
+    name: Cora
+explanation:
+  fname: checkpoints/planetoid/explanations/node_1708.pt
+export:
+  output_dir: ./dataset_code/planetoid
+  layout: spring
+  scale: 1000

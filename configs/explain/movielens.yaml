@@ -3,6 +3,7 @@ general:
   device: cuda
   target: &target ["user", "rates", "movie"]
   state_dict: checkpoints/movielens/model.pt
+  pbar: True
 data:
   name: MovieLens100K
   config:

@@ -16,10 +16,11 @@ def filter_graph(data: Data, num_nodes: int):
     if num_nodes > data.x.size(0):
         return data
     x = data.x[:num_nodes]
-    edge_index, _ = subgraph(torch.arange(num_nodes), data.edge_index, relabel_nodes=True)
+    edge_index, _ = subgraph(
+        torch.arange(num_nodes), data.edge_index, relabel_nodes=True
+    )
     y = data.y[:num_nodes]
     return Data(x=x, edge_index=edge_index, y=y)
-
 
 
 def export_pyg_graph_to_python(
@@ -98,9 +99,7 @@ def export_pyg_graph_to_python(
             y = y.tolist() if y.size(0) > 1 or y.ndim > 1 else y.item()
             attrs = {
                 "type": "Generic",
-                "description": (
-                    f"Class: {y}" if hasattr(data, "y") else ""
-                ),
+                "description": (f"Class: {y}" if hasattr(data, "y") else ""),
                 "shape": "Circle",
                 "pos": pos[node],
             }
@@ -170,10 +169,8 @@ def filter_hetero_graph(data: HeteroData, num_nodes: int):
         src_type, rel, dst_type = edge_type
         store = data[edge_type]
         edge_index = store.edge_index
-        mask = (
-            (edge_index[0] < kept_nodes[src_type])
-            &
-            (edge_index[1] < kept_nodes[dst_type])
+        mask = (edge_index[0] < kept_nodes[src_type]) & (
+            edge_index[1] < kept_nodes[dst_type]
         )
         store.edge_index = edge_index[:, mask]
         num_edges = edge_index.size(1)
@@ -223,6 +220,7 @@ def generate_node_type_styles(node_types):
 
     return styles
 
+
 def export_pyg_hetero_graph_to_python(
     data: HeteroData,
     num_nodes: int = None,
@@ -245,9 +243,9 @@ def export_pyg_hetero_graph_to_python(
     # ---------------------------------
     G = nx.MultiDiGraph()
     # Nodes
-    
+
     node_styles = generate_node_type_styles(data.node_types)
-    
+
     node_type_iterator = tqdm(data.node_types) if use_tqdm else data.node_types
     for node_type in node_type_iterator:
         store = data[node_type]
@@ -256,9 +254,7 @@ def export_pyg_hetero_graph_to_python(
             description = node_id
             if hasattr(store, "y"):
                 try:
-                    description += (
-                        f" - Class: {int(store.y[idx])}"
-                    )
+                    description += f" - Class: {int(store.y[idx])}"
                 except:
                     pass
             G.add_node(
@@ -286,20 +282,11 @@ def export_pyg_hetero_graph_to_python(
     # Compute layout
     # ---------------------------------
     if len(G) < 5000:
-        pos = nx.spring_layout(
-            G,
-            seed=42
-        )
+        pos = nx.spring_layout(G, seed=42)
     else:
         pos = nx.random_layout(G)
 
-    pos = {
-        node: (
-            float(x * 1000),
-            float(y * 1000)
-        )
-        for node, (x, y) in pos.items()
-    }
+    pos = {node: (float(x * 1000), float(y * 1000)) for node, (x, y) in pos.items()}
 
     # ---------------------------------
     # Write Python file
@@ -309,30 +296,18 @@ def export_pyg_hetero_graph_to_python(
 
         f.write("import networkx as nx\n\n")
 
-        f.write(
-            "G = nx.MultiDiGraph()\n\n"
-        )
-
+        f.write("G = nx.MultiDiGraph()\n\n")
 
         # Nodes
         for node, attrs in G.nodes(data=True):
             attrs["pos"] = pos[node]
-            f.write(
-                f"G.add_node("
-                f"{repr(node)}, "
-                f"**{repr(attrs)}"
-                f")\n"
-            )
+            f.write(f"G.add_node(" f"{repr(node)}, " f"**{repr(attrs)}" f")\n")
         f.write("\n")
 
         # Edges
         for u, v, attrs in G.edges(data=True):
             f.write(
-                f"G.add_edge("
-                f"{repr(u)}, "
-                f"{repr(v)}, "
-                f"**{repr(attrs)}"
-                f")\n"
+                f"G.add_edge(" f"{repr(u)}, " f"{repr(v)}, " f"**{repr(attrs)}" f")\n"
             )
 
         f.write("\n")
@@ -341,22 +316,13 @@ def export_pyg_hetero_graph_to_python(
         f.write("pos = {\n")
 
         for node, p in pos.items():
-            f.write(
-                f"    {repr(node)}: {p},\n"
-            )
+            f.write(f"    {repr(node)}: {p},\n")
 
-        f.write(
-            "}\n\n"
-        )
+        f.write("}\n\n")
 
-        f.write(
-            "nx.draw(G, pos=pos, with_labels=True)\n"
-        )
+        f.write("nx.draw(G, pos=pos, with_labels=True)\n")
 
-    print(
-        f"Saved heterogeneous graph to {output_file}"
-    )
-
+    print(f"Saved heterogeneous graph to {output_file}")
 
 
 def generate_dataset_code(parameters: dict) -> None:
@@ -365,7 +331,6 @@ def generate_dataset_code(parameters: dict) -> None:
 
     dataset = download_dataset(**dataset_parameters)
     return export_pyg_graph_to_python(data=dataset, **exporter_parameters)
-
 
 
 def generate_hetero_dataset_code(parameters: dict) -> None:

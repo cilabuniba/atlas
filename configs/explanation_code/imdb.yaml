@@ -1,0 +1,8 @@
+dataset:
+  data_class: IMDB
+  dataset_cfg:
+    root: ./data/raw/imdb
+explanation:
+  fname: checkpoints/imdb/explanations/node_0.pt
+export:
+  output_dir: dataset_code/imdb
