@@ -93,10 +93,11 @@ def export_pyg_explanation_to_python(dataset: Data, explanation: Explanation, ou
         # -------------------------
 
         for node in selected_nodes:
-
+            y = dataset.y[node].unsqueeze(0) if node < dataset.y.size(0) else dataset.y
+            y = y.tolist() if y.size(0) > 1 or y.ndim > 1 else y.item()
             attrs = {
                 "type": "Generic",
-                "description": f"Class: {int(dataset.y[node])}",
+                "description": (f"Class: {y}" if hasattr(dataset, "y") else ""),
                 "shape": "Circle",
                 "pos": pos[node],
                 "explained": (
