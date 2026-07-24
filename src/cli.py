@@ -15,7 +15,7 @@ def main():
     help="Optional flag to impose heterogeneous graph filtering",
 )
 def dataset_code(parameters, hetero):
-    from src.dataset_download import generate_code
+    from src.code_gen import generate_code
     return generate_code(load_ruamel(parameters), hetero)
 
 
