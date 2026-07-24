@@ -5,3 +5,7 @@ dataset:
     name: Cora
 explanation:
   fname: checkpoints/planetoid/explanations/node_1708.pt
+export:
+  output_dir: ./dataset_code/planetoid
+  layout: spring
+  scale: 1000

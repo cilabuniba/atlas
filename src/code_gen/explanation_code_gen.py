@@ -149,6 +149,7 @@ def generate_explanation_code(parameters: dict) -> None:
     dataset = get_dataset(**dataset_parameters)
     explanation_parameters = parameters["explanation"]
     explanation = load_explanation(**explanation_parameters)
+    export_parameters = parameters["export"]
 
 
-    return export_pyg_explanation_to_python(dataset=dataset, explanation=explanation)
+    return export_pyg_explanation_to_python(dataset=dataset, explanation=explanation, **export_parameters)
