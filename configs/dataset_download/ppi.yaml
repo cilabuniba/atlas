@@ -5,7 +5,7 @@ dataset:
     split: test
 export:
   output_dir: ./dataset_code/ppi
-  num_nodes: 200
+  num_nodes: 50
   layout: spring
   scale: 1000
   use_tqdm: True

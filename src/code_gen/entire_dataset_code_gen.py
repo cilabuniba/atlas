@@ -6,6 +6,7 @@ import torch_geometric.datasets as data_class_dict
 from tqdm import tqdm
 import os
 import torch
+from collections import deque
 
 
 def download_dataset(data_class, dataset_cfg: dict = {}) -> Data:
@@ -13,14 +14,65 @@ def download_dataset(data_class, dataset_cfg: dict = {}) -> Data:
 
 
 def filter_graph(data: Data, num_nodes: int):
-    if num_nodes > data.x.size(0):
+    """
+    Extract a connected induced subgraph with at most num_nodes nodes.
+
+    The subgraph is obtained by:
+        1. Taking the largest connected component.
+        2. Starting from its highest-degree node.
+        3. Performing a BFS until num_nodes nodes are collected.
+    """
+
+    if num_nodes >= data.num_nodes:
         return data
-    x = data.x[:num_nodes]
-    edge_index, _ = subgraph(
-        torch.arange(num_nodes), data.edge_index, relabel_nodes=True
+
+    # Convert to NetworkX
+    G = to_networkx(
+        data,
+        to_undirected=True,
+        remove_self_loops=False,
     )
-    y = data.y[:num_nodes]
-    return Data(x=x, edge_index=edge_index, y=y)
+
+    # Largest connected component
+    largest_cc = max(nx.connected_components(G), key=len)
+    H = G.subgraph(largest_cc)
+    # Choose a central node (highest degree)
+    seed = max(H.degree, key=lambda x: x[1])[0]
+    # BFS
+    visited = []
+    visited_set = set()
+    queue = deque([seed])
+
+    while queue and len(visited) < num_nodes:
+        node = queue.popleft()
+        if node in visited_set:
+            continue
+        visited.append(node)
+        visited_set.add(node)
+        # Visit higher-degree neighbors first to obtain
+        # a denser visualization.
+        neighbors = sorted(
+            H.neighbors(node),
+            key=lambda n: H.degree[n],
+            reverse=True,
+        )
+        for neigh in neighbors:
+            if neigh not in visited_set:
+                queue.append(neigh)
+
+    subset = torch.tensor(visited)
+    edge_index, _ = subgraph(
+        subset,
+        data.edge_index,
+        relabel_nodes=True,
+    )
+    kwargs = {
+        "x": data.x[subset],
+        "edge_index": edge_index,
+    }
+    if hasattr(data, "y"):
+        kwargs["y"] = data.y[subset]
+    return Data(**kwargs)
 
 
 def export_pyg_graph_to_python(
@@ -134,53 +186,150 @@ def export_pyg_graph_to_python(
 
 def filter_hetero_graph(data: HeteroData, num_nodes: int):
     """
-    Keep only the first num_nodes nodes of each node type and
-    remove invalid edges.
+    Keep at most num_nodes nodes per node type and remove isolated nodes.
+
+    The resulting heterogeneous graph satisfies:
+        - each node type has <= num_nodes nodes
+        - every remaining node has at least one edge (any relation/type)
+        - edge indices are relabeled
     """
-
     data = data.clone()
-
+    # --------------------------------------------------
+    # Initial node selection
+    # --------------------------------------------------
     kept_nodes = {}
-
-    # -----------------------------
-    # Filter nodes
-    # -----------------------------
     for node_type in data.node_types:
         store = data[node_type]
+        keep = min(num_nodes, store.num_nodes)
+        kept_nodes[node_type] = torch.arange(
+            keep,
+            dtype=torch.long,
+        )
+
+    changed = True
+    while changed:
+        changed = False
+
+        # --------------------------------------------------
+        # Filter edges according to current nodes
+        # --------------------------------------------------
+        node_sets = {k: set(v.tolist()) for k, v in kept_nodes.items()}
+        edge_masks = {}
+        for edge_type in data.edge_types:
+            src_type, _, dst_type = edge_type
+            edge_index = data[edge_type].edge_index
+            src_keep = node_sets[src_type]
+            dst_keep = node_sets[dst_type]
+            mask = torch.tensor(
+                [
+                    (src.item() in src_keep) and (dst.item() in dst_keep)
+                    for src, dst in edge_index.t()
+                ],
+                dtype=torch.bool,
+            )
+            edge_masks[edge_type] = mask
+
+        # --------------------------------------------------
+        # Compute node degrees
+        # --------------------------------------------------
+        degrees = {
+            node_type: torch.zeros(
+                len(nodes),
+                dtype=torch.long,
+            )
+            for node_type, nodes in kept_nodes.items()
+        }
+        for edge_type, mask in edge_masks.items():
+            src_type, _, dst_type = edge_type
+            edge_index = data[edge_type].edge_index[:, mask]
+            if edge_index.numel() == 0:
+                continue
+            src_deg = torch.bincount(
+                edge_index[0],
+                minlength=data[src_type].num_nodes,
+            )
+            dst_deg = torch.bincount(
+                edge_index[1],
+                minlength=data[dst_type].num_nodes,
+            )
+            for i, node_id in enumerate(kept_nodes[src_type]):
+                degrees[src_type][i] += src_deg[node_id]
+            for i, node_id in enumerate(kept_nodes[dst_type]):
+                degrees[dst_type][i] += dst_deg[node_id]
+
+        # --------------------------------------------------
+        # Remove isolated nodes
+        # --------------------------------------------------
+        for node_type in data.node_types:
+            current_nodes = kept_nodes[node_type]
+            keep_mask = degrees[node_type] > 0
+            if not torch.all(keep_mask):
+                changed = True
+                kept_nodes[node_type] = current_nodes[keep_mask]
+
+    # --------------------------------------------------
+    # Apply final node filtering
+    # --------------------------------------------------
+    mappings = {}
+    for node_type in data.node_types:
+        old_nodes = kept_nodes[node_type]
+        mappings[node_type] = {old.item(): new for new, old in enumerate(old_nodes)}
+        store = data[node_type]
         old_num_nodes = store.num_nodes
-        keep = min(num_nodes, old_num_nodes)
-        kept_nodes[node_type] = keep
 
         for key, value in list(store.items()):
             if isinstance(value, torch.Tensor):
                 if value.size(0) == old_num_nodes:
-                    store[key] = value[:keep]
-
+                    store[key] = value[old_nodes]
             elif isinstance(value, list):
                 if len(value) == old_num_nodes:
-                    store[key] = value[:keep]
+                    store[key] = [value[i] for i in old_nodes.tolist()]
 
-        store.num_nodes = keep
+        store.num_nodes = len(old_nodes)
 
-    # -----------------------------
-    # Filter edges
-    # -----------------------------
+    # --------------------------------------------------
+    # Apply final edge filtering and relabeling
+    # --------------------------------------------------
     for edge_type in data.edge_types:
-        src_type, rel, dst_type = edge_type
+        src_type, _, dst_type = edge_type
         store = data[edge_type]
         edge_index = store.edge_index
-        mask = (edge_index[0] < kept_nodes[src_type]) & (
-            edge_index[1] < kept_nodes[dst_type]
+        new_edges = []
+        kept_edges = []
+        for idx, (src, dst) in enumerate(edge_index.t().tolist()):
+            if src in mappings[src_type] and dst in mappings[dst_type]:
+                new_edges.append(
+                    [
+                        mappings[src_type][src],
+                        mappings[dst_type][dst],
+                    ]
+                )
+                kept_edges.append(idx)
+
+        if len(new_edges):
+            store.edge_index = (
+                torch.tensor(
+                    new_edges,
+                    dtype=torch.long,
+                )
+                .t()
+                .contiguous()
+            )
+        else:
+            store.edge_index = torch.empty(
+                (2, 0),
+                dtype=torch.long,
+            )
+        kept_edges = torch.tensor(
+            kept_edges,
+            dtype=torch.long,
         )
-        store.edge_index = edge_index[:, mask]
-        num_edges = edge_index.size(1)
+        old_num_edges = edge_index.size(1)
         for key, value in list(store.items()):
             if key == "edge_index":
                 continue
-
-            if isinstance(value, torch.Tensor):
-                if value.size(0) == num_edges:
-                    store[key] = value[mask]
+            if isinstance(value, torch.Tensor) and value.size(0) == old_num_edges:
+                store[key] = value[kept_edges]
 
     return data
 
