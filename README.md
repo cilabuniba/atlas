@@ -5,13 +5,42 @@
 
 Despite the increasing adoption of graph-based learning methods, the integration between interactive graph modelling and programmatic graph analytics remains limited. We present ATLAS, a general-purpose software that bridges interactive graph modelling with modern graph analytics and graph-learning workflows. The software is implemented in Python and supports the interactive construction of both homogeneous and heterogeneous graphs through a graphical interface. It enables the definition and customisation of nodes and edges, the real-time computation of structural metrics, and the automatic generation of executable Python code compatible with major graph libraries, including NetworkX, igraph, PyVis, DGL, and PyTorch Geometric. In addition, existing code can be imported to reconstruct graph structures, supporting bidirectional integration between visual modelling and programmatic workflows. The software also facilitates the visual inspection of complex graph structures and graph-based explanatory outputs. Two real-world application scenarios demonstrate the applicability of ATLAS in practical contexts.
 
-## System Setup
+## Environment setup
 
-All dependencies are managed via [uv](https://github.com/astral-sh/uv). To build the virtual environment and install all required libraries, you can run:
+ATLAS targets **Python 3.12** and uses [uv](https://github.com/astral-sh/uv). for dependency management. After cloning the repository, install all required packages with:
 
-``` bash
+```bash
 uv sync
 ```
+
+The project dependencies can be grouped according to their purpose.
+
+### GUI and graph visualization
+
+The following packages are required to run the ATLAS graphical interface and support graph visualization, configuration management, and data manipulation:
+
+| Package       | Purpose                                                    |
+| ------------- | ---------------------------------------------------------- |
+| `click`       | Command-line interface utilities.                          |
+| `jupyter`     | Interactive notebooks for development and experimentation. |
+| `networkx`    | Graph representation and visualization.                    |
+| `pandas`      | Tabular data manipulation.                                 |
+| `pyqt6`       | Desktop graphical user interface.                          |
+| `ruamel-yaml` | Reading and writing YAML configuration files.              |
+| `scipy`       | Scientific computing utilities.                            |
+
+### GNN training and explanation
+
+The experimental pipeline used to train Graph Neural Networks and generate explanations relies on the following machine learning libraries:
+
+| Package           | Purpose                                                                                         |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `torch`           | Deep learning framework used to train GNN models.                                               |
+| `torch-geometric` | Graph learning library providing datasets, models, and explanation algorithms.                  |
+| `torchmetrics`    | Evaluation metrics for model training and testing.                                              |
+| `transformers`    | Transformer-based models used by the multimodal and language-based components of the framework. |
+
+All dependencies are installed automatically through `uv sync`. Users interested only in the visualization interface can ignore the machine learning libraries, whereas reproducing the experiments described in the paper requires the complete environment.
 
 Once all dependencies have been installed, you can launch the GUI by running
 
@@ -146,6 +175,38 @@ In addition, the integrated metrics module continuously computes structural prop
 
 This example demonstrates how ATLAS bridges interactive graph modelling and executable graph-learning representations with minimal manual effort.
 
+ATLAS can also be employed to visualize raw dataset. To this end, you need to first generate the `python` code to do that, executing
+```
+uv run script_exe.py dataset_code --parameters configs/dataset_download/planetoid.yaml 
+``` 
+Once the code is generated (see [dataset_code/planetoid/graph_export.py](dataset_code/planetoid/graph_export.py)), you can copy-paste it into the GUI import section, obtaining the following graph:
+<p align="center">
+    <img src="docs/imgs/code/cora_dataset.png" width="900">
+</p>
+
+Additionally, we provide explanation visualization. To do this, we firstly train a GAT to solve, in this case, a node classification task; then we leverage GNNExplainer to compute the explanation for a target node, and lastly we extract the code to draw the explanatin graph.
+
+To train the GNN, run:
+```
+uv run script_exe.py training --parameters configs/training/planetoid.yaml --cls PlanetoidRun
+```
+
+To extract explanations, run:
+```
+uv run script_exe.py explain --parameters configs/explain/planetoid.yaml --cls PlanetoidExplainerRun
+```
+
+And to extract the code to draw the explanation, execute:
+```
+uv run script_exe.py dataset_code --parameters configs/explanation_code/planetoid.yaml --explanation
+```
+
+Once the code has been generated (see [dataset_code/planetoid/explanation_export.py](dataset_code/planetoid/explanation_export.py)), it can be directly imported in the GUI to visualize the obtained explanation. 
+<p align="center">
+    <img src="docs/imgs/code/cora_explanation.png" width="900">
+</p>
+
+
 ---
 
 ## Case Study — MovieLens Recommendation System
@@ -215,4 +276,31 @@ Unlike homogeneous graphs, the heterogeneous representation explicitly preserves
 - Knowledge graph modelling
 
 This example highlights how ATLAS simplifies the transition from conceptual heterogeneous graph design to executable graph-learning implementations.
-``
+
+As explained for the Cora dataset, ATLAS features the drawing of the entire dataset and the explanation subgraph for heterogeneous graph too.
+
+To gather the code for the raw dataset visualization, please run:
+```
+uv run script_exe.py dataset_code --parameters configs/dataset_download/movielens.yaml --hetero
+```
+The obtained graph (see [dataset_code/movielens/graph_export.py](dataset_code/movielens/graph_export.py)) can be directly imported in ATLAS, obtaining:
+<p align="center">
+    <img src="docs/imgs/code/movielens_dataset.png" width="900">
+</p>
+
+After that, we simulated a general purpose link prediction task, training a GNN (in this case a GAT) and an explainer (GNNExplainer) to gather graph based explanations.
+To do this, run:
+```
+uv run script_exe.py training --parameters configs/training/movielens.yaml --cls MovielensRun
+uv run script_exe.py explain --parameters configs/explain/movielens.yaml --cls MovielensExplainerRun
+```
+
+Finally, generate the explanation graph code by executing:
+```
+uv run script_exe.py dataset_code --parameters configs/explanation_code/movielens.yaml --explanation --hetero
+```
+
+The network, visualized inside ATLAS, is as follows:
+<p align="center">
+    <img src="docs/imgs/code/movielens_explanation.png" width="900">
+</p>
