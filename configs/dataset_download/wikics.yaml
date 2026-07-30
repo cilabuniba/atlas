@@ -4,7 +4,7 @@ dataset:
     root: ./data/raw/wikics
 export:
   output_dir: ./dataset_code/wikics
-  num_nodes: 200
+  num_nodes: 50
   layout: spring
   scale: 1000
   use_tqdm: True

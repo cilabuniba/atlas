@@ -4,5 +4,5 @@ dataset:
     root: ./data/raw/imdb
 export:
   output_dir: ./dataset_code/imdb
-  num_nodes: 50
+  num_nodes: 500
   use_tqdm: True
