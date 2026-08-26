@@ -1,0 +1,11 @@
+﻿dataset:
+  data_class: Planetoid
+  dataset_cfg:
+    root: ./data/raw/planetoid
+    name: Cora
+export:
+  output_dir: ./dataset_code/metrics/planetoid/5000
+  num_nodes: 5000
+  layout: spring
+  scale: 1000
+  use_tqdm: True
