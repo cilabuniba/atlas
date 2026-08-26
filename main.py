@@ -371,7 +371,12 @@ class GraphEditor(QMainWindow):
 
     def _on_import_requested(self, code):
         try:
-            GraphImporter.import_from_code(code, self.scene)
+            metrics_file = None
+            reply = QMessageBox.question(self, "Metrics", "Do you want to save performance metrics to a JSON file?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                metrics_file, _ = QFileDialog.getSaveFileName(self, "Save Metrics", "import_metrics.json", "JSON files (*.json)")
+            
+            GraphImporter.import_from_code(code, self.scene, metrics_file)
             self.update_code_preview()
             QMessageBox.information(self, "Success", "Graph imported successfully!")
         except Exception as e:
