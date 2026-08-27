@@ -67,26 +67,28 @@ class GraphScene(QGraphicsScene):
 
     def add_node(self, node_id, pos, tipo="Generic", attributes=None):
         from models.node import Node
-        from PyQt6.QtGui import QBrush
+        from PyQt6.QtGui import QBrush, QPen
 
         node = Node(node_id, pos, tipo, attributes)
 
+        shape = attributes.get("shape", "Circle") if attributes else "Circle"
+        color = attributes.get("color", "#B279A2") if attributes else "#B279A2"
+        color = QColor(*hex_to_rgb(color)) if isinstance(color, str) and color.startswith("#") else QColor(color)
 
-        shape = attributes.get("shape", "Circle")
-        color = attributes.get("color", "#B279A2")
-        color=QColor(*hex_to_rgb(color))
+        importance = attributes.get("importance", None) if attributes else None
+        if importance is not None:
+            node.importance = float(importance)
+            node.radius = 18 + int(12 * float(importance))
+            border_w = 1.5 + 3.0 * float(importance)
+            node_pen = QPen(Qt.GlobalColor.black, border_w)
+        else:
+            node_pen = QPen(Qt.GlobalColor.black, 1.0)
 
         if self.mode_type == "Heterogeneous":
             if tipo not in self.node_types:
                 self.node_types[tipo] = {"shape": shape, "color": color}
-                # self.node_types[tipo]["shape"] = tipo_shape
-                # self.node_types[tipo]["color"] = color
-        # if self.mode_type == "Heterogeneous" and tipo_shape in self.node_types:
 
-        #     shape = self.node_types[tipo_shape]["shape"]
-        #     color = self.node_types[tipo_shape]["color"]
         node.color = color
-
 
         from PyQt6.QtGui import QPixmap
 
@@ -119,7 +121,7 @@ class GraphScene(QGraphicsScene):
                     pos.y() - node.radius,
                     node.radius * 2,
                     node.radius * 2,
-                    QPen(Qt.GlobalColor.black)
+                    node_pen
                 )
                 shape_item.setBrush(QBrush(color))
 
@@ -129,7 +131,7 @@ class GraphScene(QGraphicsScene):
                     pos.y() - node.radius,
                     node.radius * 3,
                     node.radius * 2,
-                    QPen(Qt.GlobalColor.black)
+                    node_pen
                 )
                 shape_item.setBrush(QBrush(color))
 
@@ -143,7 +145,7 @@ class GraphScene(QGraphicsScene):
                     QPointF(pos.x() - node.radius, pos.y())
                 ])
 
-                shape_item = self.addPolygon(diamond, QPen(Qt.GlobalColor.black))
+                shape_item = self.addPolygon(diamond, node_pen)
                 shape_item.setBrush(QBrush(color))
 
             else:  # Default Circle
@@ -152,14 +154,10 @@ class GraphScene(QGraphicsScene):
                     pos.y() - node.radius,
                     node.radius * 2,
                     node.radius * 2,
-                    QPen(Qt.GlobalColor.black)
+                    node_pen
                 )
                 shape_item.setBrush(QBrush(color))
 
-
-                # --------------------------
-                # Aggiungi testo e tooltip
-                # --------------------------
         shape_item.setZValue(1)
         shape_item.setFlag(shape_item.GraphicsItemFlag.ItemIsSelectable)
         shape_item.setFlag(shape_item.GraphicsItemFlag.ItemIsFocusable)
@@ -169,18 +167,25 @@ class GraphScene(QGraphicsScene):
         text.setZValue(2)
         text.setDefaultTextColor(Qt.GlobalColor.black)
         text.setPos(
-        pos.x() - text.boundingRect().width() / 2,
+            pos.x() - text.boundingRect().width() / 2,
             pos.y() - text.boundingRect().height() / 2
         )
 
         descrizione = attributes.get("description", "") if attributes else ""
-        tooltip = f"{node_id} - {descrizione}" if descrizione else node_id
+        if importance is not None:
+            tooltip = f"Node {node_id} (Importance: {float(importance):.3f})"
+            if descrizione and "Importance:" not in descrizione:
+                tooltip += f" - {descrizione}"
+        else:
+            tooltip = f"{node_id} - {descrizione}" if descrizione else str(node_id)
+
         shape_item.setToolTip(tooltip)
         text.setToolTip(tooltip)
 
         node.graphics_item = shape_item
         node.text_item = text
         self.nodes[node_id] = node
+
 
 
 
@@ -218,7 +223,6 @@ class GraphScene(QGraphicsScene):
         if source_node == target_node:
             return
 
-        
         if tipo is None or attributes is None:
             tipo, ok = QInputDialog.getText(None, "Edge Type", "Edge type (e.g., connects, participates):")
             if not ok or not tipo.strip():
@@ -231,24 +235,65 @@ class GraphScene(QGraphicsScene):
             tipo = tipo.strip()
             attributes = {"description": description.strip()}
 
-        
+        attributes = dict(attributes) if attributes else {}
+
         line = self.addLine(
             source_node.pos.x(), source_node.pos.y(),
             target_node.pos.x(), target_node.pos.y()
         )
 
-        
         edge = Edge(source_node, target_node, tipo, attributes)
         edge.graphics_item = line
 
-        # Tooltip
-        tooltip = f"{tipo} - {attributes.get('description', '')}"
+        importance = attributes.get("importance", None)
+        custom_width = attributes.get("width", None)
+        custom_color = attributes.get("color", None)
+
+        pen = QPen()
+        if custom_width is not None:
+            pen.setWidthF(float(custom_width))
+        elif importance is not None:
+            # Scale edge thickness dynamically with importance [1.5px to 6.0px]
+            pen.setWidthF(1.5 + 4.5 * float(importance))
+        else:
+            pen.setWidthF(1.5)
+
+        if custom_color:
+            c = QColor(custom_color) if isinstance(custom_color, str) else QColor(*custom_color)
+            pen.setColor(c)
+        elif importance is not None:
+            imp_val = float(importance)
+            if imp_val >= 0.7:
+                pen.setColor(QColor("#E63946"))  # High importance: Vibrant Crimson
+            elif imp_val >= 0.3:
+                pen.setColor(QColor("#F58518"))  # Medium importance: Amber / Orange
+            else:
+                pen.setColor(QColor("#718096"))  # Low importance: Slate Gray
+        else:
+            pen.setColor(QColor(Qt.GlobalColor.black))
+
+        line.setPen(pen)
+
+        descrizione = attributes.get("description", "")
+        if importance is not None:
+            tooltip = f"{tipo} (Importance: {float(importance):.3f})"
+            if descrizione and "Importance:" not in descrizione:
+                tooltip += f" - {descrizione}"
+        else:
+            tooltip = f"{tipo} - {descrizione}" if descrizione else tipo
         line.setToolTip(tooltip)
 
-        
         mid_x = (source_node.pos.x() + target_node.pos.x()) / 2
         mid_y = (source_node.pos.y() + target_node.pos.y()) / 2
-        label = self.addText(tipo)
+
+        if importance is not None and tipo == "Edge":
+            label_text = f"[{float(importance):.2f}]"
+        elif importance is not None:
+            label_text = f"{tipo} [{float(importance):.2f}]"
+        else:
+            label_text = tipo
+
+        label = self.addText(label_text)
         label.setPos(mid_x, mid_y)
         label.setZValue(1)
         label.setToolTip(tooltip)
@@ -260,6 +305,7 @@ class GraphScene(QGraphicsScene):
 
         self.update_metrics()
         return edge
+
 
 
 

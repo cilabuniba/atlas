@@ -167,14 +167,13 @@ class GraphImporter:
              
                 tipo = attrs.get("type", "Generic")
                 descrizione = attrs.get("description", "")
-                forma = attrs.get("form", "Circle")
+                forma = attrs.get("shape", attrs.get("form", "Circle"))
                 colore = attrs.get("color", "#B279A2")
 
-                node_attrs = {
-                    "description": descrizione,
-                    "shape": forma,
-                    "color": colore,
-                }
+                node_attrs = dict(attrs)
+                node_attrs["description"] = descrizione
+                node_attrs["shape"] = forma
+                node_attrs["color"] = colore
 
                 scene_node = scene.add_node(node_id, scene_pos, tipo=tipo, attributes=node_attrs)
                 node_map[node_id] = scene_node
@@ -193,10 +192,10 @@ class GraphImporter:
             try:
                 if source in node_map and target in node_map:
                     tipo = attrs.get("type", "Relation")
-                    descrizione = attrs.get("description", "")
-                    edge_attrs = {"description": descrizione}
+                    edge_attrs = dict(attrs)
 
                     scene.add_edge(node_map[source], node_map[target], tipo=tipo, attributes=edge_attrs)
+
             except Exception as e:
                 raise ValueError(f"Error adding edge {source} → {target}: {str(e)}")
 
