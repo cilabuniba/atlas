@@ -336,16 +336,8 @@ def filter_hetero_graph(data: HeteroData, num_nodes: int):
 
 def generate_node_type_styles(node_types):
     """
-    Dynamically assign colors and shapes to node types.
+    Dynamically assign distinct colors to node types using Circle shape.
     """
-
-    shapes = [
-        "Circle",
-        "Rectangle",
-        "Ellipse",
-        "Diamond",
-    ]
-
     # Color palette (hex)
     colors = [
         "#4C78A8",
@@ -361,13 +353,13 @@ def generate_node_type_styles(node_types):
     styles = {}
 
     for i, node_type in enumerate(node_types):
-
         styles[node_type] = {
-            "shape": shapes[i % len(shapes)],
+            "shape": "Circle",
             "color": colors[i % len(colors)],
         }
 
     return styles
+
 
 
 def export_pyg_hetero_graph_to_python(
