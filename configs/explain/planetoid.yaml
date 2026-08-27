@@ -34,5 +34,5 @@ explainer:
     task_level: node
     return_type: raw
   threshold_config:
-    threshold_type: topk_hard
+    threshold_type: topk
     value: 50
