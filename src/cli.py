@@ -45,3 +45,16 @@ def explain(parameters, cls):
     from src.explain import exe_explain
 
     exe_explain(load_ruamel(parameters), cls)
+
+
+@main.command("complexity")
+@click.option("--parameters", help="Path to the parameters file", required=True)
+@click.option(
+    "--cls", help="Class to be used for running the experiment", required=True
+)
+def complexity(parameters, cls):
+    from src.complexity import exe_complexity
+
+    exe_complexity(load_ruamel(parameters), cls)
+
+

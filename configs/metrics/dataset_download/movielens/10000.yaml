@@ -1,0 +1,8 @@
+﻿dataset:
+  data_class: MovieLens100K
+  dataset_cfg:
+    root: ./data/raw/movielens100k
+export:
+  output_dir: ./dataset_code/metrics/movielens100k/10000
+  num_nodes: 5000
+  use_tqdm: True

@@ -50,7 +50,7 @@ except ImportError:
 
 class GraphImporter:
     @staticmethod
-    def import_from_code(code, scene):
+    def import_from_code(code, scene, metrics_filename=None):
         """Import a graph from Python code into the scene"""
         try:
             tree = ast.parse(code)
@@ -59,7 +59,7 @@ class GraphImporter:
             if "networkx" in code:
                 if 'networkx' not in AVAILABLE_LIBRARIES:
                     raise ImportError("NetworkX is not installed. Please install it with 'pip install networkx'")
-                GraphImporter._import_networkx(code, scene)
+                GraphImporter._import_networkx(code, scene, metrics_filename)
             elif "graph_tool" in code or "graph-tool" in code:
                 if 'graph-tool' not in AVAILABLE_LIBRARIES:
                     raise ImportError("graph-tool is not installed. Please install it with your system package manager or conda")
@@ -84,7 +84,7 @@ class GraphImporter:
             raise ValueError(f"Error importing graph: {str(e)}")
     
     @staticmethod
-    def _import_networkx(code, scene):
+    def _import_networkx(code, scene, metrics_filename=None):
         """Import from NetworkX code"""
         if 'networkx' not in AVAILABLE_LIBRARIES:
             raise ImportError("NetworkX is not installed")
@@ -99,7 +99,11 @@ class GraphImporter:
         }
         locals_dict = {}
         
+        import time, tracemalloc, json
+        if metrics_filename:
+            tracemalloc.start()
         
+        t0_parse = time.time()
         try:
             import re
             print("Finding nx.draw in the code")
@@ -108,6 +112,7 @@ class GraphImporter:
             exec(code, globals_dict, locals_dict)
         except Exception as e:
             raise ValueError(f"Error executing code: {str(e)}")
+        parsing_time = time.time() - t0_parse
         
         print("Parsed nodes and edges")
         G = locals_dict.get("G", G)
@@ -135,6 +140,19 @@ class GraphImporter:
         progress.setAutoReset(True)
 
         step = 0
+        
+        original_update = scene.update_metrics
+        metric_time_list = [0.0]
+        
+        def mock_update_metrics():
+            t_m_start = time.time()
+            original_update()
+            metric_time_list[0] += time.time() - t_m_start
+            
+        if metrics_filename:
+            scene.update_metrics = mock_update_metrics
+            
+        t0_render = time.time()
 
         for node_id, attrs in tqdm(G.nodes(data=True)):
             try:
@@ -188,6 +206,24 @@ class GraphImporter:
             QApplication.processEvents()
 
         progress.close()
+        
+        rendering_time = time.time() - t0_render - metric_time_list[0]
+        if metrics_filename:
+            scene.update_metrics = original_update
+            
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            
+            data = {
+                "number_of_nodes": total_nodes,
+                "number_of_edges": total_edges,
+                "time_of_parsing": parsing_time,
+                "time_of_rendering": rendering_time,
+                "time_for_metric_computation": metric_time_list[0],
+                "memory_peak_mb": peak / (1024 * 1024)
+            }
+            with open(metrics_filename, 'w') as f:
+                json.dump(data, f, indent=4)
                         
         return True
     

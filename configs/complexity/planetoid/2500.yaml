@@ -1,0 +1,6 @@
+﻿general:
+  out_dir: checkpoints/planetoid/metrics
+  pbar: True
+data:
+  root: dataset_code/metrics/planetoid/2500/graph_export.py
+  num_nodes: 2500

@@ -1,0 +1,6 @@
+﻿general:
+  out_dir: checkpoints/movielens/metrics
+  pbar: True
+data:
+  root: dataset_code/metrics/movielens100k/5000/graph_export.py
+  num_nodes: 5000
