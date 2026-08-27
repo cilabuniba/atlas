@@ -59,8 +59,6 @@ class ComplexityRun:
     def _init_scene(self) -> None:
         self.app = get_or_create_qapp()
         self.scene = GraphScene(mode_type=self.mode_type)
-        self.metrics_panel = MetricsPanel(self.scene)
-        self.scene.set_metrics_callback(self.metrics_panel.update_metrics)
         if self.compute_metrics:
             self.metrics_panel = MetricsPanel(self.scene)
             self.scene.set_metrics_callback(self.metrics_panel.update_metrics)
