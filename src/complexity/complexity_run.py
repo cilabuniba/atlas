@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import json
 import tempfile
@@ -47,6 +47,7 @@ class ComplexityRun:
         self.out_dir = general_parameters.get(ParameterKeys.OUT_DIR, "data/metrics/results")
         os.makedirs(self.out_dir, exist_ok=True)
         self.pbar = general_parameters.get(ParameterKeys.PBAR, False)
+        self.compute_metrics = general_parameters.get("compute_metrics", False)
 
     def _init_data(self) -> None:
         data_parameters = self.parameters.get(ParameterKeys.DATA, {})
@@ -60,6 +61,14 @@ class ComplexityRun:
         self.scene = GraphScene(mode_type=self.mode_type)
         self.metrics_panel = MetricsPanel(self.scene)
         self.scene.set_metrics_callback(self.metrics_panel.update_metrics)
+        if self.compute_metrics:
+            self.metrics_panel = MetricsPanel(self.scene)
+            self.scene.set_metrics_callback(self.metrics_panel.update_metrics)
+        else:
+            self.metrics_panel = None
+            self.scene.set_metrics_callback(None)
+            self.scene.update_metrics = lambda: None
+
 
     def benchmark_code(
         self,
