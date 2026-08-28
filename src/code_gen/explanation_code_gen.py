@@ -77,6 +77,28 @@ def importance_to_hex(importance: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+def node_importance_to_border_hex(base_color_hex: str, importance: float) -> str:
+    """
+    Compute border color hex reflecting node importance with contrast against base fill.
+    """
+    imp = max(0.0, min(1.0, float(importance)))
+    base_hex = base_color_hex.lstrip("#")
+    r = int(base_hex[0:2], 16) if len(base_hex) >= 2 else 0
+    g = int(base_hex[2:4], 16) if len(base_hex) >= 4 else 0
+    b = int(base_hex[4:6], 16) if len(base_hex) >= 6 else 0
+    is_warm = (r > 180 and g < 160 and b < 100) or (r > 200 and g > 100 and b < 50)
+
+    if imp >= 0.65:
+        return "#ffd700" if is_warm else "#e63946"
+    elif imp >= 0.30:
+        return "#ffd166" if is_warm else "#f58518"
+    else:
+        dr = max(0, int(r * 0.6))
+        dg = max(0, int(g * 0.6))
+        db = max(0, int(b * 0.6))
+        return f"#{dr:02x}{dg:02x}{db:02x}"
+
+
 def export_pyg_explanation_to_python(
     dataset: Data,
     explanation: Explanation,
@@ -139,6 +161,7 @@ def export_pyg_explanation_to_python(
             y = dataset.y[node].unsqueeze(0) if node < dataset.y.size(0) else dataset.y
             y = y.tolist() if y.size(0) > 1 or y.ndim > 1 else y.item()
             node_importance = float(raw_node_mask[node]) if raw_node_mask is not None and node < raw_node_mask.size(0) else 1.0
+            border_color = node_importance_to_border_hex("#B279A2", node_importance)
 
             attrs = {
                 "type": "Generic",
@@ -146,9 +169,11 @@ def export_pyg_explanation_to_python(
                 "shape": "Circle",
                 "pos": pos[node],
                 "importance": round(node_importance, 4),
+                "border_color": border_color,
             }
 
             f.write(f"G.add_node({repr(str(node))}, **{repr(attrs)})\n")
+
 
         f.write("\n")
 
@@ -260,15 +285,19 @@ def export_hetero_pyg_explanation_to_python(
                     pass
 
             node_importance = float(raw_nm[idx]) if raw_nm is not None and idx < raw_nm.size(0) else 1.0
+            node_color = node_styles[node_type]["color"]
+            border_color = node_importance_to_border_hex(node_color, node_importance)
 
             G.add_node(
                 node_id,
                 type=node_type,
                 description=description,
                 shape=node_styles[node_type]["shape"],
-                color=node_styles[node_type]["color"],
+                color=node_color,
                 importance=round(node_importance, 4),
+                border_color=border_color,
             )
+
 
     # ---------------------------------
     # Edges from explanation mask

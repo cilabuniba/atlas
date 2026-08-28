@@ -27,6 +27,34 @@ def hex_to_rgb(hex_color):
     )
 
 
+def compute_node_border_color(base_color: QColor, importance: float) -> QColor:
+    """
+    Compute a salient, high-contrast border/margin color reflecting node importance.
+    Based on the node fill color:
+    - Low importance (< 0.3): Subtle muted border tone (darkened base tone or slate #4A5568).
+    - Medium importance (0.3 - 0.65): Warm Amber / Saffron (#F58518).
+    - High importance (>= 0.65): Intense Crimson (#E63946) or Luminous Gold (#FFD700)
+      calibrated to contrast against the node fill color.
+    """
+    imp = max(0.0, min(1.0, float(importance)))
+    hue = base_color.hue()
+    is_warm = (0 <= hue <= 50) or (330 <= hue <= 359)
+
+    if imp >= 0.65:
+        if is_warm:
+            return QColor("#FFD700") if (base_color.red() > 200 and base_color.green() < 160) else QColor("#D90429")
+        else:
+            return QColor("#E63946")
+    elif imp >= 0.30:
+        if is_warm and base_color.red() > 200:
+            return QColor("#FFD166")
+        else:
+            return QColor("#F58518")
+    else:
+        darkened = base_color.darker(160)
+        return darkened if darkened.lightness() < 90 else QColor("#4A5568")
+
+
 class GraphScene(QGraphicsScene):
     graphModified = pyqtSignal()  # New signal for graph modifications
     
@@ -38,6 +66,13 @@ class GraphScene(QGraphicsScene):
         self.node_counter = 0
         self.selected_node = None
         self.mode = None 
+        self.moving_node = None
+        self.selected_edge = None
+        self.edge_start_node = None
+        self.temp_edge = None
+        self.color_dialog = None
+        self.legend_widget = None
+        self.type_counters = {}
         self.metrics_callback = None
         self.last_pan_pos = None
         self.moving_node = None  # Track the node being moved
@@ -76,13 +111,27 @@ class GraphScene(QGraphicsScene):
         color = QColor(*hex_to_rgb(color)) if isinstance(color, str) and color.startswith("#") else QColor(color)
 
         importance = attributes.get("importance", None) if attributes else None
+        custom_border = attributes.get("border_color", None) if attributes else None
+
+        if custom_border:
+            border_color = QColor(custom_border) if isinstance(custom_border, str) else QColor(*custom_border)
+        elif importance is not None:
+            border_color = compute_node_border_color(color, float(importance))
+        else:
+            border_color = QColor(Qt.GlobalColor.black)
+
         if importance is not None:
             node.importance = float(importance)
             node.radius = 18 + int(12 * float(importance))
             border_w = 1.5 + 3.0 * float(importance)
             node_pen = QPen(Qt.GlobalColor.black, border_w)
+            node_pen = QPen(border_color, border_w)
         else:
             node_pen = QPen(Qt.GlobalColor.black, 1.0)
+            border_w = float(attributes.get("border_width", 1.0)) if attributes else 1.0
+            node_pen = QPen(border_color, border_w)
+
+        node.border_color = border_color
 
         if self.mode_type == "Heterogeneous":
             if tipo not in self.node_types:
