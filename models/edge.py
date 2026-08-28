@@ -10,3 +10,5 @@ class Edge:
         self.graphics_item = None 
         self.label_item = None
         self.color = QColor(Qt.GlobalColor.black)
+        self.importance = self.attributes.get("importance", None)
+        self.width = self.attributes.get("width", None)

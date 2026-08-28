@@ -56,6 +56,49 @@ def preprocess_hetero_explanation(
     return explanation
 
 
+def importance_to_hex(importance: float) -> str:
+    """
+    Map an importance score in [0, 1] to a colormap hex string.
+    Low (< 0.3): Slate gray #718096
+    Medium (0.3 - 0.7): Amber / Orange #F58518
+    High (>= 0.7): Crimson / Red #E63946
+    """
+    imp = max(0.0, min(1.0, float(importance)))
+    if imp < 0.5:
+        t = imp / 0.5
+        r = int(113 + t * (245 - 113))
+        g = int(128 + t * (133 - 128))
+        b = int(150 + t * (24 - 150))
+    else:
+        t = (imp - 0.5) / 0.5
+        r = int(245 + t * (230 - 245))
+        g = int(133 + t * (57 - 133))
+        b = int(24 + t * (70 - 24))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def node_importance_to_border_hex(base_color_hex: str, importance: float) -> str:
+    """
+    Compute border color hex reflecting node importance with contrast against base fill.
+    """
+    imp = max(0.0, min(1.0, float(importance)))
+    base_hex = base_color_hex.lstrip("#")
+    r = int(base_hex[0:2], 16) if len(base_hex) >= 2 else 0
+    g = int(base_hex[2:4], 16) if len(base_hex) >= 4 else 0
+    b = int(base_hex[4:6], 16) if len(base_hex) >= 6 else 0
+    is_warm = (r > 180 and g < 160 and b < 100) or (r > 200 and g > 100 and b < 50)
+
+    if imp >= 0.65:
+        return "#ffd700" if is_warm else "#e63946"
+    elif imp >= 0.30:
+        return "#ffd166" if is_warm else "#f58518"
+    else:
+        dr = max(0, int(r * 0.6))
+        dg = max(0, int(g * 0.6))
+        db = max(0, int(b * 0.6))
+        return f"#{dr:02x}{dg:02x}{db:02x}"
+
+
 def export_pyg_explanation_to_python(
     dataset: Data,
     explanation: Explanation,
@@ -63,6 +106,9 @@ def export_pyg_explanation_to_python(
     layout: str = "spring",
     scale: int = 1000,
 ) -> None:
+    raw_node_mask = explanation.node_mask.squeeze(-1).clone() if hasattr(explanation, "node_mask") and explanation.node_mask is not None else None
+    raw_edge_mask = explanation.edge_mask.clone() if hasattr(explanation, "edge_mask") and explanation.edge_mask is not None else None
+
     explanation = preprocess_explanation(data=dataset, explanation=explanation)
 
     G = to_networkx(
@@ -101,6 +147,7 @@ def export_pyg_explanation_to_python(
 
     edge_index = dataset.edge_index[:, selected_edges]
 
+    os.makedirs(output_dir, exist_ok=True)
     output_file = f"{output_dir}/explanation_export.py"
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("import networkx as nx\n\n")
@@ -113,17 +160,20 @@ def export_pyg_explanation_to_python(
         for node in selected_nodes:
             y = dataset.y[node].unsqueeze(0) if node < dataset.y.size(0) else dataset.y
             y = y.tolist() if y.size(0) > 1 or y.ndim > 1 else y.item()
+            node_importance = float(raw_node_mask[node]) if raw_node_mask is not None and node < raw_node_mask.size(0) else 1.0
+            border_color = node_importance_to_border_hex("#B279A2", node_importance)
+
             attrs = {
                 "type": "Generic",
                 "description": (f"Class: {y}" if hasattr(dataset, "y") else ""),
                 "shape": "Circle",
                 "pos": pos[node],
-                "explained": (
-                    hasattr(explanation, "node") and node == int(explanation.node)
-                ),
+                "importance": round(node_importance, 4),
+                "border_color": border_color,
             }
 
             f.write(f"G.add_node({repr(str(node))}, **{repr(attrs)})\n")
+
 
         f.write("\n")
 
@@ -131,13 +181,21 @@ def export_pyg_explanation_to_python(
         # Edges
         # -------------------------
 
-        for src, dst in edge_index.t().tolist():
+        for i, edge_id in enumerate(selected_edges.tolist()):
+            src = dataset.edge_index[0, edge_id].item()
+            dst = dataset.edge_index[1, edge_id].item()
 
             if src in selected_nodes and dst in selected_nodes:
+                edge_importance = float(raw_edge_mask[edge_id]) if raw_edge_mask is not None and edge_id < raw_edge_mask.size(0) else 1.0
+                edge_width = round(1.5 + 4.5 * edge_importance, 2)
+                edge_color = importance_to_hex(edge_importance)
 
                 attrs = {
                     "type": "Edge",
-                    "description": "",
+                    "importance": round(edge_importance, 4),
+                    "width": edge_width,
+                    "color": edge_color,
+                    "description": f"Importance: {edge_importance:.3f}",
                 }
 
                 f.write(
@@ -157,6 +215,7 @@ def export_pyg_explanation_to_python(
         f.write("nx.draw(G, pos=pos, with_labels=True)\n")
 
 
+
 def export_hetero_pyg_explanation_to_python(
     dataset: HeteroData,
     explanation: HeteroExplanation,
@@ -167,12 +226,25 @@ def export_hetero_pyg_explanation_to_python(
     compatible with the graph visualization widget.
 
     The exported graph contains only nodes and edges selected by the
-    explanation hard masks.
+    explanation hard masks, with importance scores and visual attributes preserved.
     """
+    raw_node_masks = {}
+    for node_type in dataset.node_types:
+        if hasattr(explanation, "__getitem__") and node_type in explanation.node_types and hasattr(explanation[node_type], "node_mask"):
+            nm = explanation[node_type].node_mask
+            if nm is not None:
+                if nm.dim() > 1:
+                    nm = nm.abs().mean(dim=-1)
+                raw_node_masks[node_type] = nm.clone()
+
+    raw_edge_masks = {}
+    for edge_type in explanation.edge_types:
+        if hasattr(explanation[edge_type], "edge_mask") and explanation[edge_type].edge_mask is not None:
+            raw_edge_masks[edge_type] = explanation[edge_type].edge_mask.clone()
+
     explanation = preprocess_hetero_explanation(data=dataset, explanation=explanation)
     os.makedirs(output_dir, exist_ok=True)
     output_file = f"{output_dir}/explanation_export.py"
-
 
     # ---------------------------------
     # Create temporary NetworkX graph
@@ -180,21 +252,16 @@ def export_hetero_pyg_explanation_to_python(
 
     G = nx.MultiDiGraph()
 
-
     node_styles = generate_node_type_styles(
         dataset.node_types
     )
-
 
     # ---------------------------------
     # Nodes from explanation mask
     # ---------------------------------
 
     node_type_iterator = dataset.node_types
-
-
     selected_nodes = {}
-
 
     for node_type in node_type_iterator:
         store = dataset[node_type]
@@ -206,26 +273,31 @@ def export_hetero_pyg_explanation_to_python(
         node_ids = torch.where(mask)[0].tolist()
         selected_nodes[node_type] = set(node_ids)
 
+        raw_nm = raw_node_masks.get(node_type, None)
+
         for idx in node_ids:
             node_id = f"{node_type}:{idx}"
             description = node_id
             if hasattr(store, "y"):
                 try:
-                    description += (f" - Class: {int(store.y[idx])}")
+                    description += f" - Class: {int(store.y[idx])}"
                 except:
                     pass
+
+            node_importance = float(raw_nm[idx]) if raw_nm is not None and idx < raw_nm.size(0) else 1.0
+            node_color = node_styles[node_type]["color"]
+            border_color = node_importance_to_border_hex(node_color, node_importance)
 
             G.add_node(
                 node_id,
                 type=node_type,
                 description=description,
                 shape=node_styles[node_type]["shape"],
-                color=node_styles[node_type]["color"],
-                explained=(
-                    hasattr(explanation, "node")
-                    and explanation.node == (node_type, idx)
-                ),
+                color=node_color,
+                importance=round(node_importance, 4),
+                border_color=border_color,
             )
+
 
     # ---------------------------------
     # Edges from explanation mask
@@ -239,6 +311,7 @@ def export_hetero_pyg_explanation_to_python(
         edge_index = dataset[edge_type].edge_index
         edge_mask = explanation[edge_type].edge_mask
         edge_ids = torch.where(edge_mask)[0]
+        raw_em = raw_edge_masks.get(edge_type, None)
 
         for edge_id in edge_ids.tolist():
             src = edge_index[0, edge_id].item()
@@ -249,12 +322,20 @@ def export_hetero_pyg_explanation_to_python(
                 and
                 dst in selected_nodes[dst_type]
             ):
+                edge_importance = float(raw_em[edge_id]) if raw_em is not None and edge_id < raw_em.size(0) else 1.0
+                edge_width = round(1.5 + 4.5 * edge_importance, 2)
+                edge_color = importance_to_hex(edge_importance)
+
                 G.add_edge(
                     f"{src_type}:{src}",
                     f"{dst_type}:{dst}",
                     type=relation,
-                    description=relation,
+                    importance=round(edge_importance, 4),
+                    width=edge_width,
+                    color=edge_color,
+                    description=f"Importance: {edge_importance:.3f}",
                 )
+
 
     # ---------------------------------
     # Compute layout

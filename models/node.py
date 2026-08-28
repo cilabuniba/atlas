@@ -13,3 +13,6 @@ class Node:
         self.text_item = None
         self.radius = 20
         self.color = color
+        self.importance = self.attributes.get("importance", None)
+        self.border_color = self.attributes.get("border_color", None)
+
