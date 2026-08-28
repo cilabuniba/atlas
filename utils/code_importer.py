@@ -48,12 +48,57 @@ try:
 except ImportError:
     pass
 
+class SecurityError(Exception):
+    pass
+
+class SecurityValidator(ast.NodeVisitor):
+    """Statically analyzes Python code to prevent arbitrary code execution."""
+    ALLOWED_IMPORTS = {
+        'networkx', 'nx', 'graph_tool', 'gt', 'igraph', 'ig', 
+        'pyvis', 'pygraphviz', 'pgv', 'dgl', 'snap', 'random', 
+        'math', 'numpy', 'np', 'torch', 'collections', 'itertools'
+    }
+    DANGEROUS_FUNCTIONS = {
+        'open', 'eval', 'exec', '__import__', 'globals', 'locals', 
+        'getattr', 'setattr', 'delattr', 'input', 'compile', 'exit', 'quit'
+    }
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            base_module = alias.name.split('.')[0]
+            if base_module not in self.ALLOWED_IMPORTS:
+                raise SecurityError(f"Security: Importing '{alias.name}' is blocked.")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node):
+        if node.module:
+            base_module = node.module.split('.')[0]
+            if base_module not in self.ALLOWED_IMPORTS:
+                raise SecurityError(f"Security: Importing from '{node.module}' is blocked.")
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.DANGEROUS_FUNCTIONS:
+                raise SecurityError(f"Security: Function '{node.func.id}()' is blocked.")
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        if node.attr.startswith('__') and node.attr.endswith('__'):
+            raise SecurityError(f"Security: Access to internal attribute '{node.attr}' is blocked.")
+        self.generic_visit(node)
+
 class GraphImporter:
     @staticmethod
     def import_from_code(code, scene, metrics_filename=None):
         """Import a graph from Python code into the scene"""
         try:
             tree = ast.parse(code)
+            
+            # Security validation
+            validator = SecurityValidator()
+            validator.visit(tree)
+            
             scene.clear_all()
 
             if "networkx" in code:
