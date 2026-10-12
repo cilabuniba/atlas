@@ -590,3 +590,17 @@ The resulting explanation visualization is shown below:
 
 This case study demonstrates how ATLAS supports the complete workflow from heterogeneous graph modelling to explainable graph learning analysis.
 
+## 📖 Citation
+
+If you find **ATLAS** helpful in your research, please cite our paper:
+
+ ```bibtex
+@article{zaza2026atlas,
+  title={ATLAS: A software for interactive modeling and analysis of homogeneous and heterogeneous graphs},
+  author={Zaza, Gianluca and Scaringi, Raffaele and Conserva, Gianluca and Leone, Davide and Casalino, Gabriella},
+  journal={Neurocomputing},
+  pages={135318},
+  year={2026},
+  publisher={Elsevier}
+}
+```
