@@ -192,6 +192,7 @@ cython_debug/
 *.out
 *.toc
 *.pdf
+!docs/manuscript.pdf
 *.nav
 *.snm
 *.vrb
